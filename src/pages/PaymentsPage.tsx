@@ -8,11 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useRole } from "@/contexts/RoleContext";
 import { Plus } from "lucide-react";
 
 export default function PaymentsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { isAdmin } = useRole();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     job_id: "",
@@ -60,12 +62,11 @@ export default function PaymentsPage() {
       setForm({ job_id: "", date: new Date().toISOString().split("T")[0], amount_paid: 0, payment_method: "Cash", payment_type: "Final" });
       toast({ title: "Payment recorded" });
     },
-    onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const fmt = (n: number) => `R ${n.toFixed(2)}`;
 
-  // Group payments by job to calculate outstanding
   const paymentsByJob = payments.reduce<Record<string, number>>((acc, p) => {
     acc[p.job_id] = (acc[p.job_id] || 0) + p.amount_paid;
     return acc;
@@ -75,7 +76,6 @@ export default function PaymentsPage() {
     return j.labour_charge + j.parts_cost * (1 + j.markup_percentage / 100);
   };
 
-  // For selected job, show outstanding
   const selectedJob = jobs.find((j) => j.id === form.job_id);
   const selectedJobTotal = selectedJob ? getJobTotal(selectedJob) : 0;
   const selectedJobPaid = paymentsByJob[form.job_id] || 0;
@@ -100,7 +100,7 @@ export default function PaymentsPage() {
                       const b = j.bookings as { customer_name: string; vehicle: string } | null;
                       return (
                         <SelectItem key={j.id} value={j.id}>
-                          {b?.customer_name} — {b?.vehicle} ({fmt(getJobTotal(j))})
+                          {b?.customer_name} — {b?.vehicle}
                         </SelectItem>
                       );
                     })}
@@ -152,7 +152,9 @@ export default function PaymentsPage() {
                 <TableHead>Date</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Vehicle</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right">Job Total</TableHead>
+                <TableHead className="text-right">Amount Paid</TableHead>
+                <TableHead className="text-right">Outstanding</TableHead>
                 <TableHead>Method</TableHead>
                 <TableHead>Type</TableHead>
               </TableRow>
@@ -160,19 +162,23 @@ export default function PaymentsPage() {
             <TableBody>
               {payments.map((p) => {
                 const job = p.jobs as { labour_charge: number; parts_cost: number; markup_percentage: number; bookings: { customer_name: string; vehicle: string } | null } | null;
+                const jobTotal = job ? getJobTotal(job) : 0;
+                const totalPaidForJob = paymentsByJob[p.job_id] || 0;
                 return (
                   <TableRow key={p.id}>
                     <TableCell className="whitespace-nowrap">{p.date}</TableCell>
                     <TableCell>{job?.bookings?.customer_name}</TableCell>
                     <TableCell>{job?.bookings?.vehicle}</TableCell>
+                    <TableCell className="text-right">{fmt(jobTotal)}</TableCell>
                     <TableCell className="text-right font-medium">{fmt(p.amount_paid)}</TableCell>
+                    <TableCell className="text-right">{fmt(jobTotal - totalPaidForJob)}</TableCell>
                     <TableCell>{p.payment_method}</TableCell>
                     <TableCell>{p.payment_type}</TableCell>
                   </TableRow>
                 );
               })}
               {payments.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No payments yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No payments yet</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
