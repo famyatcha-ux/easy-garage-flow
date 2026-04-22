@@ -1,4 +1,4 @@
-import { CalendarCheck, Wrench, CreditCard, Receipt, LayoutDashboard, Shield, User } from "lucide-react";
+import { CalendarCheck, Wrench, CreditCard, Receipt, LayoutDashboard, Shield, User, Truck } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useRole, type Role } from "@/contexts/RoleContext";
@@ -20,6 +20,7 @@ const allItems = [
   { title: "Jobs", url: "/jobs", icon: Wrench, adminOnly: false },
   { title: "Payments", url: "/payments", icon: CreditCard, adminOnly: false },
   { title: "Expenses", url: "/expenses", icon: Receipt, adminOnly: true },
+  { title: "Suppliers", url: "/suppliers", icon: Truck, adminOnly: true },
 ];
 
 export function AppSidebar() {

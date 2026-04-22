@@ -9,6 +9,7 @@ import BookingsPage from "./pages/BookingsPage";
 import JobsPage from "./pages/JobsPage";
 import PaymentsPage from "./pages/PaymentsPage";
 import ExpensesPage from "./pages/ExpensesPage";
+import SuppliersPage from "./pages/SuppliersPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const AppRoutes = () => (
       <Route path="/jobs" element={<JobsPage />} />
       <Route path="/payments" element={<PaymentsPage />} />
       <Route path="/expenses" element={<AdminRoute><ExpensesPage /></AdminRoute>} />
+      <Route path="/suppliers" element={<AdminRoute><SuppliersPage /></AdminRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </AppLayout>
