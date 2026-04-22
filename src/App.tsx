@@ -6,7 +6,7 @@ import { AppLayout } from "@/components/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import BookingsPage from "./pages/BookingsPage";
 import JobsPage from "./pages/JobsPage";
-import PaymentsPage from "./pages/PaysPage";
+import PaymentsPage from "./pages/PaymentsPage";
 import ExpensesPage from "./pages/ExpensesPage";
 import NotFound from "./pages/NotFound";
 
