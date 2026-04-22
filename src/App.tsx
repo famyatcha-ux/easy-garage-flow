@@ -34,14 +34,14 @@ const AppRoutes = () => (
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <BrowserRouter>
-        <RoleProvider>
+    <RoleProvider>
+      <TooltipProvider>
+        <Toaster />
+        <BrowserRouter>
           <AppRoutes />
-        </RoleProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </RoleProvider>
   </QueryClientProvider>
 );
 
