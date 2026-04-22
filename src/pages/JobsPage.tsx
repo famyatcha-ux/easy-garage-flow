@@ -8,11 +8,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus } from "lucide-react";
+import { useRole } from "@/contexts/RoleContext";
+import { generateInvoice } from "@/lib/generateInvoice";
+import { Plus, FileText } from "lucide-react";
+
+const JOB_STATUSES = ["Pending", "In Progress", "Completed"] as const;
 
 export default function JobsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { isAdmin } = useRole();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     booking_id: "",
@@ -45,13 +50,16 @@ export default function JobsPage() {
 
   const addJob = useMutation({
     mutationFn: async (j: typeof form) => {
-      const { error } = await supabase.from("jobs").insert({
+      const insertData: Record<string, unknown> = {
         booking_id: j.booking_id,
         date: j.date,
-        labour_charge: j.labour_charge,
-        parts_cost: j.parts_cost,
-        markup_percentage: j.markup_percentage,
-      });
+      };
+      if (isAdmin) {
+        insertData.labour_charge = j.labour_charge;
+        insertData.parts_cost = j.parts_cost;
+        insertData.markup_percentage = j.markup_percentage;
+      }
+      const { error } = await supabase.from("jobs").insert(insertData as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -60,7 +68,15 @@ export default function JobsPage() {
       setForm({ booking_id: "", date: new Date().toISOString().split("T")[0], labour_charge: 0, parts_cost: 0, markup_percentage: 0 });
       toast({ title: "Job created" });
     },
-    onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from("jobs").update({ status } as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
   });
 
   const calc = (j: { labour_charge: number; parts_cost: number; markup_percentage: number }) => {
@@ -71,6 +87,22 @@ export default function JobsPage() {
   };
 
   const fmt = (n: number) => `R ${n.toFixed(2)}`;
+
+  const handleInvoice = (job: typeof jobs[0]) => {
+    const booking = job.bookings as { customer_name: string; vehicle: string; registration: string | null } | null;
+    const c = calc(job);
+    const doc = generateInvoice({
+      customerName: booking?.customer_name ?? "Unknown",
+      vehicle: booking?.vehicle ?? "Unknown",
+      registration: booking?.registration ?? null,
+      labourCharge: job.labour_charge,
+      partsSellingPrice: c.partsSellingPrice,
+      totalAmount: c.totalValue,
+      date: job.date,
+    });
+    doc.save(`invoice-${job.date}-${booking?.customer_name ?? "job"}.pdf`);
+    toast({ title: "Invoice downloaded" });
+  };
 
   return (
     <div>
@@ -97,15 +129,19 @@ export default function JobsPage() {
                 </Select>
               </div>
               <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
-              <div><Label>Labour Charge</Label><Input type="number" min={0} step={0.01} value={form.labour_charge} onChange={(e) => setForm({ ...form, labour_charge: +e.target.value })} /></div>
-              <div><Label>Parts Cost</Label><Input type="number" min={0} step={0.01} value={form.parts_cost} onChange={(e) => setForm({ ...form, parts_cost: +e.target.value })} /></div>
-              <div><Label>Markup %</Label><Input type="number" min={0} step={0.01} value={form.markup_percentage} onChange={(e) => setForm({ ...form, markup_percentage: +e.target.value })} /></div>
-              {form.booking_id && (
-                <div className="bg-muted p-3 rounded text-sm space-y-1">
-                  <p>Parts Selling Price: <strong>{fmt(calc(form).partsSellingPrice)}</strong></p>
-                  <p>Total Job Value: <strong>{fmt(calc(form).totalValue)}</strong></p>
-                  <p>Profit: <strong>{fmt(calc(form).profit)}</strong></p>
-                </div>
+              {isAdmin && (
+                <>
+                  <div><Label>Labour Charge</Label><Input type="number" min={0} step={0.01} value={form.labour_charge} onChange={(e) => setForm({ ...form, labour_charge: +e.target.value })} /></div>
+                  <div><Label>Parts Cost</Label><Input type="number" min={0} step={0.01} value={form.parts_cost} onChange={(e) => setForm({ ...form, parts_cost: +e.target.value })} /></div>
+                  <div><Label>Markup %</Label><Input type="number" min={0} step={0.01} value={form.markup_percentage} onChange={(e) => setForm({ ...form, markup_percentage: +e.target.value })} /></div>
+                  {form.booking_id && (
+                    <div className="bg-muted p-3 rounded text-sm space-y-1">
+                      <p>Parts Selling Price: <strong>{fmt(calc(form).partsSellingPrice)}</strong></p>
+                      <p>Total Job Value: <strong>{fmt(calc(form).totalValue)}</strong></p>
+                      <p>Profit: <strong>{fmt(calc(form).profit)}</strong></p>
+                    </div>
+                  )}
+                </>
               )}
               <Button type="submit" className="w-full" disabled={!form.booking_id || addJob.isPending}>Create Job</Button>
             </form>
@@ -122,34 +158,53 @@ export default function JobsPage() {
                 <TableHead>Date</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Vehicle</TableHead>
-                <TableHead className="text-right">Labour</TableHead>
-                <TableHead className="text-right">Parts Cost</TableHead>
-                <TableHead className="text-right">Markup %</TableHead>
-                <TableHead className="text-right">Parts Selling</TableHead>
-                <TableHead className="text-right">Total Value</TableHead>
-                <TableHead className="text-right">Profit</TableHead>
+                <TableHead>Status</TableHead>
+                {isAdmin && <TableHead className="text-right">Labour</TableHead>}
+                {isAdmin && <TableHead className="text-right">Parts Cost</TableHead>}
+                {isAdmin && <TableHead className="text-right">Markup %</TableHead>}
+                {isAdmin && <TableHead className="text-right">Parts Selling</TableHead>}
+                {isAdmin && <TableHead className="text-right">Total Value</TableHead>}
+                {isAdmin && <TableHead className="text-right">Profit</TableHead>}
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {jobs.map((j) => {
                 const c = calc(j);
-                const booking = j.bookings as { customer_name: string; vehicle: string; registration: string } | null;
+                const booking = j.bookings as { customer_name: string; vehicle: string; registration: string | null } | null;
                 return (
                   <TableRow key={j.id}>
                     <TableCell className="whitespace-nowrap">{j.date}</TableCell>
                     <TableCell>{booking?.customer_name}</TableCell>
                     <TableCell>{booking?.vehicle}</TableCell>
-                    <TableCell className="text-right">{fmt(j.labour_charge)}</TableCell>
-                    <TableCell className="text-right">{fmt(j.parts_cost)}</TableCell>
-                    <TableCell className="text-right">{j.markup_percentage}%</TableCell>
-                    <TableCell className="text-right">{fmt(c.partsSellingPrice)}</TableCell>
-                    <TableCell className="text-right font-medium">{fmt(c.totalValue)}</TableCell>
-                    <TableCell className="text-right font-medium">{fmt(c.profit)}</TableCell>
+                    <TableCell>
+                      <Select value={(j as any).status ?? "Pending"} onValueChange={(v) => updateStatus.mutate({ id: j.id, status: v })}>
+                        <SelectTrigger className="w-[120px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {JOB_STATUSES.map((s) => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    {isAdmin && <TableCell className="text-right">{fmt(j.labour_charge)}</TableCell>}
+                    {isAdmin && <TableCell className="text-right">{fmt(j.parts_cost)}</TableCell>}
+                    {isAdmin && <TableCell className="text-right">{j.markup_percentage}%</TableCell>}
+                    {isAdmin && <TableCell className="text-right">{fmt(c.partsSellingPrice)}</TableCell>}
+                    {isAdmin && <TableCell className="text-right font-medium">{fmt(c.totalValue)}</TableCell>}
+                    {isAdmin && <TableCell className="text-right font-medium">{fmt(c.profit)}</TableCell>}
+                    <TableCell>
+                      <Button variant="ghost" size="sm" onClick={() => handleInvoice(j)} title="Generate Invoice">
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {jobs.length === 0 && (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No jobs yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={isAdmin ? 11 : 5} className="text-center text-muted-foreground py-8">No jobs yet</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
