@@ -18,7 +18,7 @@ const allItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, adminOnly: true },
   { title: "Bookings", url: "/bookings", icon: CalendarCheck, adminOnly: false },
   { title: "Jobs", url: "/jobs", icon: Wrench, adminOnly: false },
-  { title: "Payments", url: "/payments", icon: CreditCard, adminOnly: true },
+  { title: "Payments", url: "/payments", icon: CreditCard, adminOnly: false },
   { title: "Expenses", url: "/expenses", icon: Receipt, adminOnly: true },
 ];
 
