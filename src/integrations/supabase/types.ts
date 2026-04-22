@@ -92,6 +92,7 @@ export type Database = {
           labour_charge: number
           markup_percentage: number
           parts_cost: number
+          status: string
           updated_at: string
         }
         Insert: {
@@ -102,6 +103,7 @@ export type Database = {
           labour_charge?: number
           markup_percentage?: number
           parts_cost?: number
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -112,6 +114,7 @@ export type Database = {
           labour_charge?: number
           markup_percentage?: number
           parts_cost?: number
+          status?: string
           updated_at?: string
         }
         Relationships: [
