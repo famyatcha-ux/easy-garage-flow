@@ -168,6 +168,93 @@ export type Database = {
           },
         ]
       }
+      supplier_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          id: string
+          job_id: string | null
+          reference: string | null
+          supplier_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          date?: string
+          id?: string
+          job_id?: string | null
+          reference?: string | null
+          supplier_id: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          id?: string
+          job_id?: string | null
+          reference?: string | null
+          supplier_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_transactions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_transactions_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          account_number: string | null
+          contact_person: string | null
+          created_at: string
+          email: string | null
+          id: string
+          notes: string | null
+          phone_number: string | null
+          supplier_name: string
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          notes?: string | null
+          phone_number?: string | null
+          supplier_name: string
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          notes?: string | null
+          phone_number?: string | null
+          supplier_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
