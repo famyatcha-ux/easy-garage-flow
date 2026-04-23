@@ -26,6 +26,12 @@ export default function SuppliersPage() {
     phone_number: "",
     email: "",
     account_number: "",
+    bank_name: "",
+    account_holder_name: "",
+    branch_code: "",
+    account_type: "Cheque",
+    payment_terms: "",
+    credit_limit: "",
     notes: "",
   });
   const [txForm, setTxForm] = useState({
@@ -67,15 +73,25 @@ export default function SuppliersPage() {
     },
   });
 
+  const emptySupplierForm = {
+    supplier_name: "", contact_person: "", phone_number: "", email: "", account_number: "",
+    bank_name: "", account_holder_name: "", branch_code: "", account_type: "Cheque",
+    payment_terms: "", credit_limit: "", notes: "",
+  };
+
   const addSupplier = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("suppliers").insert([supplierForm]);
+      const payload = {
+        ...supplierForm,
+        credit_limit: supplierForm.credit_limit ? Number(supplierForm.credit_limit) : null,
+      };
+      const { error } = await supabase.from("suppliers").insert([payload]);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
       setSupplierOpen(false);
-      setSupplierForm({ supplier_name: "", contact_person: "", phone_number: "", email: "", account_number: "", notes: "" });
+      setSupplierForm(emptySupplierForm);
       toast({ title: "Supplier added" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -157,14 +173,44 @@ export default function SuppliersPage() {
               <DialogTrigger asChild>
                 <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Supplier</Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
                 <DialogHeader><DialogTitle>Add Supplier</DialogTitle></DialogHeader>
                 <div className="grid gap-3">
                   <div><Label>Supplier Name *</Label><Input value={supplierForm.supplier_name} onChange={(e) => setSupplierForm({ ...supplierForm, supplier_name: e.target.value })} /></div>
                   <div><Label>Contact Person</Label><Input value={supplierForm.contact_person} onChange={(e) => setSupplierForm({ ...supplierForm, contact_person: e.target.value })} /></div>
                   <div><Label>Phone Number</Label><Input value={supplierForm.phone_number} onChange={(e) => setSupplierForm({ ...supplierForm, phone_number: e.target.value })} /></div>
                   <div><Label>Email</Label><Input type="email" value={supplierForm.email} onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })} /></div>
-                  <div><Label>Account Number</Label><Input value={supplierForm.account_number} onChange={(e) => setSupplierForm({ ...supplierForm, account_number: e.target.value })} /></div>
+
+                  <div className="border-t pt-3 mt-1">
+                    <p className="text-sm font-semibold mb-2">Bank Details</p>
+                    <div className="grid gap-3">
+                      <div><Label>Bank Name</Label><Input value={supplierForm.bank_name} onChange={(e) => setSupplierForm({ ...supplierForm, bank_name: e.target.value })} /></div>
+                      <div><Label>Account Holder Name</Label><Input value={supplierForm.account_holder_name} onChange={(e) => setSupplierForm({ ...supplierForm, account_holder_name: e.target.value })} /></div>
+                      <div><Label>Account Number</Label><Input value={supplierForm.account_number} onChange={(e) => setSupplierForm({ ...supplierForm, account_number: e.target.value })} /></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><Label>Branch Code</Label><Input value={supplierForm.branch_code} onChange={(e) => setSupplierForm({ ...supplierForm, branch_code: e.target.value })} /></div>
+                        <div>
+                          <Label>Account Type</Label>
+                          <Select value={supplierForm.account_type} onValueChange={(v) => setSupplierForm({ ...supplierForm, account_type: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Cheque">Cheque</SelectItem>
+                              <SelectItem value="Savings">Savings</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-3 mt-1">
+                    <p className="text-sm font-semibold mb-2">Additional</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Payment Terms</Label><Input value={supplierForm.payment_terms} onChange={(e) => setSupplierForm({ ...supplierForm, payment_terms: e.target.value })} placeholder="e.g. 30 days" /></div>
+                      <div><Label>Credit Limit</Label><Input type="number" value={supplierForm.credit_limit} onChange={(e) => setSupplierForm({ ...supplierForm, credit_limit: e.target.value })} /></div>
+                    </div>
+                  </div>
+
                   <div><Label>Notes</Label><Textarea value={supplierForm.notes} onChange={(e) => setSupplierForm({ ...supplierForm, notes: e.target.value })} /></div>
                   <Button onClick={() => addSupplier.mutate()} disabled={!supplierForm.supplier_name}>Save</Button>
                 </div>
@@ -178,21 +224,34 @@ export default function SuppliersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Supplier Name</TableHead>
-                    <TableHead>Contact Person</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Email</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Bank</TableHead>
+                    <TableHead>Terms</TableHead>
                     <TableHead className="text-right">Purchases</TableHead>
                     <TableHead className="text-right">Payments</TableHead>
                     <TableHead className="text-right">Outstanding</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {supplierBalances.map((s) => (
+                  {supplierBalances.map((s: any) => (
                     <TableRow key={s.id}>
-                      <TableCell className="font-medium">{s.supplier_name}</TableCell>
-                      <TableCell>{s.contact_person}</TableCell>
-                      <TableCell>{s.phone_number}</TableCell>
-                      <TableCell>{s.email}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{s.supplier_name}</div>
+                        {s.phone_number && <div className="text-xs text-muted-foreground">{s.phone_number}</div>}
+                      </TableCell>
+                      <TableCell>
+                        <div>{s.contact_person}</div>
+                        {s.email && <div className="text-xs text-muted-foreground">{s.email}</div>}
+                      </TableCell>
+                      <TableCell>
+                        {s.bank_name ? (
+                          <div className="text-xs">
+                            <div>{s.bank_name}</div>
+                            <div className="text-muted-foreground">{s.account_number} ({s.account_type})</div>
+                          </div>
+                        ) : <span className="text-muted-foreground text-xs">—</span>}
+                      </TableCell>
+                      <TableCell className="text-xs">{s.payment_terms || "—"}</TableCell>
                       <TableCell className="text-right">{fmt(s.totalPurchases)}</TableCell>
                       <TableCell className="text-right">{fmt(s.totalPayments)}</TableCell>
                       <TableCell className={`text-right font-medium ${s.outstanding > 0 ? "text-destructive" : "text-primary"}`}>{fmt(s.outstanding)}</TableCell>
