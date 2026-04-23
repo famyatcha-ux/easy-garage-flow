@@ -11,37 +11,30 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Truck, DollarSign, AlertCircle } from "lucide-react";
+import { Plus, Truck, DollarSign, AlertCircle, Pencil } from "lucide-react";
 
 const TX_TYPES = ["Purchase", "Payment"] as const;
+
+const emptySupplierForm = {
+  supplier_name: "", contact_person: "", phone_number: "", email: "", account_number: "",
+  bank_name: "", account_holder_name: "", branch_code: "", account_type: "Cheque",
+  payment_terms: "", credit_limit: "", notes: "",
+};
+
+const emptyTxForm = {
+  supplier_id: "", date: new Date().toISOString().split("T")[0], type: "Purchase" as string,
+  amount: 0, reference: "", job_id: "",
+};
 
 export default function SuppliersPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [supplierOpen, setSupplierOpen] = useState(false);
+  const [supplierEditId, setSupplierEditId] = useState<string | null>(null);
   const [txOpen, setTxOpen] = useState(false);
-  const [supplierForm, setSupplierForm] = useState({
-    supplier_name: "",
-    contact_person: "",
-    phone_number: "",
-    email: "",
-    account_number: "",
-    bank_name: "",
-    account_holder_name: "",
-    branch_code: "",
-    account_type: "Cheque",
-    payment_terms: "",
-    credit_limit: "",
-    notes: "",
-  });
-  const [txForm, setTxForm] = useState({
-    supplier_id: "",
-    date: new Date().toISOString().split("T")[0],
-    type: "Purchase" as string,
-    amount: 0,
-    reference: "",
-    job_id: "",
-  });
+  const [txEditId, setTxEditId] = useState<string | null>(null);
+  const [supplierForm, setSupplierForm] = useState({ ...emptySupplierForm });
+  const [txForm, setTxForm] = useState({ ...emptyTxForm });
 
   const { data: suppliers = [], isLoading: loadingSuppliers } = useQuery({
     queryKey: ["suppliers"],
@@ -73,31 +66,41 @@ export default function SuppliersPage() {
     },
   });
 
-  const emptySupplierForm = {
-    supplier_name: "", contact_person: "", phone_number: "", email: "", account_number: "",
-    bank_name: "", account_holder_name: "", branch_code: "", account_type: "Cheque",
-    payment_terms: "", credit_limit: "", notes: "",
+  const closeSupplierDialog = () => {
+    setSupplierOpen(false);
+    setSupplierEditId(null);
+    setSupplierForm({ ...emptySupplierForm });
   };
 
-  const addSupplier = useMutation({
+  const closeTxDialog = () => {
+    setTxOpen(false);
+    setTxEditId(null);
+    setTxForm({ ...emptyTxForm, date: new Date().toISOString().split("T")[0] });
+  };
+
+  const saveSupplier = useMutation({
     mutationFn: async () => {
       const payload = {
         ...supplierForm,
         credit_limit: supplierForm.credit_limit ? Number(supplierForm.credit_limit) : null,
       };
-      const { error } = await supabase.from("suppliers").insert([payload]);
-      if (error) throw error;
+      if (supplierEditId) {
+        const { error } = await supabase.from("suppliers").update(payload as any).eq("id", supplierEditId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("suppliers").insert([payload]);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
-      setSupplierOpen(false);
-      setSupplierForm(emptySupplierForm);
-      toast({ title: "Supplier added" });
+      closeSupplierDialog();
+      toast({ title: supplierEditId ? "Supplier updated" : "Supplier added" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const addTransaction = useMutation({
+  const saveTx = useMutation({
     mutationFn: async () => {
       const payload: any = {
         supplier_id: txForm.supplier_id,
@@ -107,21 +110,56 @@ export default function SuppliersPage() {
         reference: txForm.reference || null,
         job_id: txForm.job_id || null,
       };
-      const { error } = await supabase.from("supplier_transactions").insert([payload]);
-      if (error) throw error;
+      if (txEditId) {
+        const { error } = await supabase.from("supplier_transactions").update(payload).eq("id", txEditId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("supplier_transactions").insert([payload]);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["supplier_transactions"] });
-      setTxOpen(false);
-      setTxForm({ supplier_id: "", date: new Date().toISOString().split("T")[0], type: "Purchase", amount: 0, reference: "", job_id: "" });
-      toast({ title: "Transaction recorded" });
+      closeTxDialog();
+      toast({ title: txEditId ? "Transaction updated" : "Transaction recorded" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const openEditSupplier = (s: any) => {
+    setSupplierEditId(s.id);
+    setSupplierForm({
+      supplier_name: s.supplier_name ?? "",
+      contact_person: s.contact_person ?? "",
+      phone_number: s.phone_number ?? "",
+      email: s.email ?? "",
+      account_number: s.account_number ?? "",
+      bank_name: s.bank_name ?? "",
+      account_holder_name: s.account_holder_name ?? "",
+      branch_code: s.branch_code ?? "",
+      account_type: s.account_type ?? "Cheque",
+      payment_terms: s.payment_terms ?? "",
+      credit_limit: s.credit_limit != null ? String(s.credit_limit) : "",
+      notes: s.notes ?? "",
+    });
+    setSupplierOpen(true);
+  };
+
+  const openEditTx = (tx: any) => {
+    setTxEditId(tx.id);
+    setTxForm({
+      supplier_id: tx.supplier_id,
+      date: tx.date,
+      type: tx.type,
+      amount: tx.amount,
+      reference: tx.reference ?? "",
+      job_id: tx.job_id ?? "",
+    });
+    setTxOpen(true);
+  };
+
   const fmt = (n: number) => `R ${n.toFixed(2)}`;
 
-  // Calculate per-supplier balances
   const supplierBalances = suppliers.map((s) => {
     const sTx = transactions.filter((t) => t.supplier_id === s.id);
     const totalPurchases = sTx.filter((t) => t.type === "Purchase").reduce((sum, t) => sum + t.amount, 0);
@@ -131,11 +169,49 @@ export default function SuppliersPage() {
 
   const totalOwed = supplierBalances.reduce((sum, s) => sum + s.outstanding, 0);
 
+  const supplierFormFields = (
+    <div className="grid gap-3">
+      <div><Label>Supplier Name *</Label><Input value={supplierForm.supplier_name} onChange={(e) => setSupplierForm({ ...supplierForm, supplier_name: e.target.value })} /></div>
+      <div><Label>Contact Person</Label><Input value={supplierForm.contact_person} onChange={(e) => setSupplierForm({ ...supplierForm, contact_person: e.target.value })} /></div>
+      <div><Label>Phone Number</Label><Input value={supplierForm.phone_number} onChange={(e) => setSupplierForm({ ...supplierForm, phone_number: e.target.value })} /></div>
+      <div><Label>Email</Label><Input type="email" value={supplierForm.email} onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })} /></div>
+      <div className="border-t pt-3 mt-1">
+        <p className="text-sm font-semibold mb-2">Bank Details</p>
+        <div className="grid gap-3">
+          <div><Label>Bank Name</Label><Input value={supplierForm.bank_name} onChange={(e) => setSupplierForm({ ...supplierForm, bank_name: e.target.value })} /></div>
+          <div><Label>Account Holder Name</Label><Input value={supplierForm.account_holder_name} onChange={(e) => setSupplierForm({ ...supplierForm, account_holder_name: e.target.value })} /></div>
+          <div><Label>Account Number</Label><Input value={supplierForm.account_number} onChange={(e) => setSupplierForm({ ...supplierForm, account_number: e.target.value })} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Branch Code</Label><Input value={supplierForm.branch_code} onChange={(e) => setSupplierForm({ ...supplierForm, branch_code: e.target.value })} /></div>
+            <div>
+              <Label>Account Type</Label>
+              <Select value={supplierForm.account_type} onValueChange={(v) => setSupplierForm({ ...supplierForm, account_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cheque">Cheque</SelectItem>
+                  <SelectItem value="Savings">Savings</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="border-t pt-3 mt-1">
+        <p className="text-sm font-semibold mb-2">Additional</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label>Payment Terms</Label><Input value={supplierForm.payment_terms} onChange={(e) => setSupplierForm({ ...supplierForm, payment_terms: e.target.value })} placeholder="e.g. 30 days" /></div>
+          <div><Label>Credit Limit</Label><Input type="number" value={supplierForm.credit_limit} onChange={(e) => setSupplierForm({ ...supplierForm, credit_limit: e.target.value })} /></div>
+        </div>
+      </div>
+      <div><Label>Notes</Label><Textarea value={supplierForm.notes} onChange={(e) => setSupplierForm({ ...supplierForm, notes: e.target.value })} /></div>
+      <Button onClick={() => saveSupplier.mutate()} disabled={!supplierForm.supplier_name}>{supplierEditId ? "Update Supplier" : "Save"}</Button>
+    </div>
+  );
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">Suppliers</h2>
 
-      {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -166,54 +242,17 @@ export default function SuppliersPage() {
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
         </TabsList>
 
-        {/* Suppliers Tab */}
         <TabsContent value="suppliers">
           <div className="flex justify-end mb-4">
-            <Dialog open={supplierOpen} onOpenChange={setSupplierOpen}>
+            <Dialog open={supplierOpen} onOpenChange={(v) => { if (!v) closeSupplierDialog(); else setSupplierOpen(true); }}>
               <DialogTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Supplier</Button>
+                <Button size="sm" onClick={() => { setSupplierEditId(null); setSupplierForm({ ...emptySupplierForm }); }}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Supplier
+                </Button>
               </DialogTrigger>
               <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-                <DialogHeader><DialogTitle>Add Supplier</DialogTitle></DialogHeader>
-                <div className="grid gap-3">
-                  <div><Label>Supplier Name *</Label><Input value={supplierForm.supplier_name} onChange={(e) => setSupplierForm({ ...supplierForm, supplier_name: e.target.value })} /></div>
-                  <div><Label>Contact Person</Label><Input value={supplierForm.contact_person} onChange={(e) => setSupplierForm({ ...supplierForm, contact_person: e.target.value })} /></div>
-                  <div><Label>Phone Number</Label><Input value={supplierForm.phone_number} onChange={(e) => setSupplierForm({ ...supplierForm, phone_number: e.target.value })} /></div>
-                  <div><Label>Email</Label><Input type="email" value={supplierForm.email} onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })} /></div>
-
-                  <div className="border-t pt-3 mt-1">
-                    <p className="text-sm font-semibold mb-2">Bank Details</p>
-                    <div className="grid gap-3">
-                      <div><Label>Bank Name</Label><Input value={supplierForm.bank_name} onChange={(e) => setSupplierForm({ ...supplierForm, bank_name: e.target.value })} /></div>
-                      <div><Label>Account Holder Name</Label><Input value={supplierForm.account_holder_name} onChange={(e) => setSupplierForm({ ...supplierForm, account_holder_name: e.target.value })} /></div>
-                      <div><Label>Account Number</Label><Input value={supplierForm.account_number} onChange={(e) => setSupplierForm({ ...supplierForm, account_number: e.target.value })} /></div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div><Label>Branch Code</Label><Input value={supplierForm.branch_code} onChange={(e) => setSupplierForm({ ...supplierForm, branch_code: e.target.value })} /></div>
-                        <div>
-                          <Label>Account Type</Label>
-                          <Select value={supplierForm.account_type} onValueChange={(v) => setSupplierForm({ ...supplierForm, account_type: v })}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Cheque">Cheque</SelectItem>
-                              <SelectItem value="Savings">Savings</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-3 mt-1">
-                    <p className="text-sm font-semibold mb-2">Additional</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div><Label>Payment Terms</Label><Input value={supplierForm.payment_terms} onChange={(e) => setSupplierForm({ ...supplierForm, payment_terms: e.target.value })} placeholder="e.g. 30 days" /></div>
-                      <div><Label>Credit Limit</Label><Input type="number" value={supplierForm.credit_limit} onChange={(e) => setSupplierForm({ ...supplierForm, credit_limit: e.target.value })} /></div>
-                    </div>
-                  </div>
-
-                  <div><Label>Notes</Label><Textarea value={supplierForm.notes} onChange={(e) => setSupplierForm({ ...supplierForm, notes: e.target.value })} /></div>
-                  <Button onClick={() => addSupplier.mutate()} disabled={!supplierForm.supplier_name}>Save</Button>
-                </div>
+                <DialogHeader><DialogTitle>{supplierEditId ? "Edit Supplier" : "Add Supplier"}</DialogTitle></DialogHeader>
+                {supplierFormFields}
               </DialogContent>
             </Dialog>
           </div>
@@ -230,6 +269,7 @@ export default function SuppliersPage() {
                     <TableHead className="text-right">Purchases</TableHead>
                     <TableHead className="text-right">Payments</TableHead>
                     <TableHead className="text-right">Outstanding</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -255,10 +295,13 @@ export default function SuppliersPage() {
                       <TableCell className="text-right">{fmt(s.totalPurchases)}</TableCell>
                       <TableCell className="text-right">{fmt(s.totalPayments)}</TableCell>
                       <TableCell className={`text-right font-medium ${s.outstanding > 0 ? "text-destructive" : "text-primary"}`}>{fmt(s.outstanding)}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" onClick={() => openEditSupplier(s)}><Pencil className="h-4 w-4" /></Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {supplierBalances.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No suppliers yet</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No suppliers yet</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -266,15 +309,16 @@ export default function SuppliersPage() {
           )}
         </TabsContent>
 
-        {/* Transactions Tab */}
         <TabsContent value="transactions">
           <div className="flex justify-end mb-4">
-            <Dialog open={txOpen} onOpenChange={setTxOpen}>
+            <Dialog open={txOpen} onOpenChange={(v) => { if (!v) closeTxDialog(); else setTxOpen(true); }}>
               <DialogTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Transaction</Button>
+                <Button size="sm" onClick={() => { setTxEditId(null); setTxForm({ ...emptyTxForm, date: new Date().toISOString().split("T")[0] }); }}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Transaction
+                </Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>Record Transaction</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{txEditId ? "Edit Transaction" : "Record Transaction"}</DialogTitle></DialogHeader>
                 <div className="grid gap-3">
                   <div>
                     <Label>Supplier *</Label>
@@ -303,14 +347,12 @@ export default function SuppliersPage() {
                       <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                       <SelectContent>
                         {jobs.map((j: any) => (
-                          <SelectItem key={j.id} value={j.id}>
-                            {j.bookings?.customer_name} – {j.bookings?.vehicle}
-                          </SelectItem>
+                          <SelectItem key={j.id} value={j.id}>{j.bookings?.customer_name} – {j.bookings?.vehicle}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button onClick={() => addTransaction.mutate()} disabled={!txForm.supplier_id || txForm.amount <= 0}>Save</Button>
+                  <Button onClick={() => saveTx.mutate()} disabled={!txForm.supplier_id || txForm.amount <= 0}>{txEditId ? "Update Transaction" : "Save"}</Button>
                 </div>
               </DialogContent>
             </Dialog>
@@ -326,6 +368,7 @@ export default function SuppliersPage() {
                     <TableHead>Type</TableHead>
                     <TableHead>Reference</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -340,10 +383,13 @@ export default function SuppliersPage() {
                       </TableCell>
                       <TableCell>{tx.reference}</TableCell>
                       <TableCell className="text-right font-medium">{fmt(tx.amount)}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" onClick={() => openEditTx(tx)}><Pencil className="h-4 w-4" /></Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {transactions.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No transactions yet</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No transactions yet</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

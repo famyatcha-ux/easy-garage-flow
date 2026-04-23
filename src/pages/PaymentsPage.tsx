@@ -9,20 +9,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/contexts/RoleContext";
-import { Plus } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
+
+const emptyForm = {
+  job_id: "",
+  date: new Date().toISOString().split("T")[0],
+  amount_paid: 0,
+  payment_method: "Cash",
+  payment_type: "Final",
+};
 
 export default function PaymentsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { isAdmin } = useRole();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    job_id: "",
-    date: new Date().toISOString().split("T")[0],
-    amount_paid: 0,
-    payment_method: "Cash",
-    payment_type: "Final",
-  });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState({ ...emptyForm });
 
   const { data: jobs = [] } = useQuery({
     queryKey: ["jobs"],
@@ -45,22 +48,27 @@ export default function PaymentsPage() {
     },
   });
 
-  const addPayment = useMutation({
-    mutationFn: async (p: typeof form) => {
-      const { error } = await supabase.from("payments").insert({
-        job_id: p.job_id,
-        date: p.date,
-        amount_paid: p.amount_paid,
-        payment_method: p.payment_method,
-        payment_type: p.payment_type,
-      });
-      if (error) throw error;
+  const savePayment = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        job_id: form.job_id,
+        date: form.date,
+        amount_paid: form.amount_paid,
+        payment_method: form.payment_method,
+        payment_type: form.payment_type,
+      };
+      if (editId) {
+        const { error } = await supabase.from("payments").update(payload).eq("id", editId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("payments").insert(payload);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payments"] });
-      setOpen(false);
-      setForm({ job_id: "", date: new Date().toISOString().split("T")[0], amount_paid: 0, payment_method: "Cash", payment_type: "Final" });
-      toast({ title: "Payment recorded" });
+      closeDialog();
+      toast({ title: editId ? "Payment updated" : "Payment recorded" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -76,6 +84,24 @@ export default function PaymentsPage() {
     return j.labour_charge + j.parts_cost * (1 + j.markup_percentage / 100);
   };
 
+  const closeDialog = () => {
+    setOpen(false);
+    setEditId(null);
+    setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
+  };
+
+  const openEdit = (p: typeof payments[0]) => {
+    setEditId(p.id);
+    setForm({
+      job_id: p.job_id,
+      date: p.date,
+      amount_paid: p.amount_paid,
+      payment_method: p.payment_method,
+      payment_type: p.payment_type,
+    });
+    setOpen(true);
+  };
+
   const selectedJob = jobs.find((j) => j.id === form.job_id);
   const selectedJobTotal = selectedJob ? getJobTotal(selectedJob) : 0;
   const selectedJobPaid = paymentsByJob[form.job_id] || 0;
@@ -84,13 +110,15 @@ export default function PaymentsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Payments</h2>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" />Record Payment</Button>
+            <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); }}>
+              <Plus className="mr-2 h-4 w-4" />Record Payment
+            </Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Record Payment</DialogTitle></DialogHeader>
-            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); addPayment.mutate(form); }}>
+            <DialogHeader><DialogTitle>{editId ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
+            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); savePayment.mutate(); }}>
               <div>
                 <Label>Job *</Label>
                 <Select value={form.job_id} onValueChange={(v) => setForm({ ...form, job_id: v })}>
@@ -98,11 +126,7 @@ export default function PaymentsPage() {
                   <SelectContent>
                     {jobs.map((j) => {
                       const b = j.bookings as { customer_name: string; vehicle: string } | null;
-                      return (
-                        <SelectItem key={j.id} value={j.id}>
-                          {b?.customer_name} — {b?.vehicle}
-                        </SelectItem>
-                      );
+                      return <SelectItem key={j.id} value={j.id}>{b?.customer_name} — {b?.vehicle}</SelectItem>;
                     })}
                   </SelectContent>
                 </Select>
@@ -137,7 +161,7 @@ export default function PaymentsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="submit" className="w-full" disabled={!form.job_id || addPayment.isPending}>Record Payment</Button>
+              <Button type="submit" className="w-full" disabled={!form.job_id || savePayment.isPending}>{editId ? "Update Payment" : "Record Payment"}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -157,6 +181,7 @@ export default function PaymentsPage() {
                 <TableHead className="text-right">Outstanding</TableHead>
                 <TableHead>Method</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -174,11 +199,14 @@ export default function PaymentsPage() {
                     <TableCell className="text-right">{fmt(jobTotal - totalPaidForJob)}</TableCell>
                     <TableCell>{p.payment_method}</TableCell>
                     <TableCell>{p.payment_type}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {payments.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No payments yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No payments yet</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
