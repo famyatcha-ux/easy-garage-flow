@@ -26,6 +26,12 @@ export default function SuppliersPage() {
     phone_number: "",
     email: "",
     account_number: "",
+    bank_name: "",
+    account_holder_name: "",
+    branch_code: "",
+    account_type: "Cheque",
+    payment_terms: "",
+    credit_limit: "",
     notes: "",
   });
   const [txForm, setTxForm] = useState({
