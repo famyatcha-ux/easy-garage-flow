@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,16 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil } from "lucide-react";
 
 const CATEGORIES = ["Parts Purchase", "Rent", "Salaries", "Fuel", "Other"] as const;
+type TimeRange = "week" | "month";
 
-const emptyForm = {
-  date: new Date().toISOString().split("T")[0],
-  category: "Parts Purchase",
-  amount: 0,
-  notes: "",
-};
+function getRange(r: TimeRange) {
+  const now = new Date();
+  const end = now.toISOString().split("T")[0];
+  if (r === "week") { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); return { start: d.toISOString().split("T")[0], end }; }
+  return { start: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`, end };
+}
+
+const emptyForm = { date: new Date().toISOString().split("T")[0], category: "Parts Purchase", amount: 0, notes: "" };
 
 export default function ExpensesPage() {
   const { toast } = useToast();
@@ -26,118 +29,83 @@ export default function ExpensesPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [range, setRange] = useState<TimeRange>("month");
 
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ["expenses"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("expenses").select("*").order("date", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => { const { data, error } = await supabase.from("expenses").select("*").order("date", { ascending: false }); if (error) throw error; return data; },
   });
+
+  const { start, end } = useMemo(() => getRange(range), [range]);
+  const filtered = useMemo(() => expenses.filter((e) => e.date >= start && e.date <= end), [expenses, start, end]);
+  const totalFiltered = useMemo(() => filtered.reduce((s, e) => s + e.amount, 0), [filtered]);
 
   const saveExpense = useMutation({
     mutationFn: async () => {
-      const payload = {
-        date: form.date,
-        category: form.category,
-        amount: form.amount,
-        notes: form.notes || null,
-      };
-      if (editId) {
-        const { error } = await supabase.from("expenses").update(payload).eq("id", editId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("expenses").insert(payload);
-        if (error) throw error;
-      }
+      const payload = { date: form.date, category: form.category, amount: form.amount, notes: form.notes || null };
+      if (editId) { const { error } = await supabase.from("expenses").update(payload).eq("id", editId); if (error) throw error; }
+      else { const { error } = await supabase.from("expenses").insert(payload); if (error) throw error; }
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["expenses"] });
-      closeDialog();
-      toast({ title: editId ? "Expense updated" : "Expense added" });
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["expenses"] }); closeDialog(); toast({ title: editId ? "Expense updated" : "Expense added" }); },
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const fmt = (n: number) => `R ${n.toFixed(2)}`;
+  const closeDialog = () => { setOpen(false); setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); };
+  const openEdit = (ex: typeof expenses[0]) => { setEditId(ex.id); setForm({ date: ex.date, category: ex.category, amount: ex.amount, notes: ex.notes ?? "" }); setOpen(true); };
 
-  const closeDialog = () => {
-    setOpen(false);
-    setEditId(null);
-    setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
-  };
-
-  const openEdit = (ex: typeof expenses[0]) => {
-    setEditId(ex.id);
-    setForm({
-      date: ex.date,
-      category: ex.category,
-      amount: ex.amount,
-      notes: ex.notes ?? "",
-    });
-    setOpen(true);
-  };
+  const filters: { label: string; value: TimeRange }[] = [{ label: "This Week", value: "week" }, { label: "This Month", value: "month" }];
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Expenses</h2>
-        <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
-          <DialogTrigger asChild>
-            <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); }}>
-              <Plus className="mr-2 h-4 w-4" />Add Expense
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>{editId ? "Edit Expense" : "Add Expense"}</DialogTitle></DialogHeader>
-            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); saveExpense.mutate(); }}>
-              <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
-              <div>
-                <Label>Category</Label>
-                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label>Amount</Label><Input type="number" min={0} step={0.01} value={form.amount} onChange={(e) => setForm({ ...form, amount: +e.target.value })} /></div>
-              <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-              <Button type="submit" className="w-full" disabled={saveExpense.isPending}>{editId ? "Update Expense" : "Add Expense"}</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            {filters.map((f) => <Button key={f.value} size="sm" variant={range === f.value ? "default" : "outline"} onClick={() => setRange(f.value)}>{f.label}</Button>)}
+          </div>
+          <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
+            <DialogTrigger asChild>
+              <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); }}><Plus className="mr-2 h-4 w-4" />Add Expense</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>{editId ? "Edit Expense" : "Add Expense"}</DialogTitle></DialogHeader>
+              <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); saveExpense.mutate(); }}>
+                <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+                <div><Label>Category</Label>
+                  <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Amount</Label><Input type="number" min={0} step={0.01} value={form.amount} onChange={(e) => setForm({ ...form, amount: +e.target.value })} /></div>
+                <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+                <Button type="submit" className="w-full" disabled={saveExpense.isPending}>{editId ? "Update Expense" : "Add Expense"}</Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
-      {isLoading ? (
-        <p className="text-muted-foreground">Loading...</p>
-      ) : (
+      <p className="text-sm text-muted-foreground mb-3">{filtered.length} expense{filtered.length !== 1 ? "s" : ""} — Total: {fmt(totalFiltered)}</p>
+      {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
         <div className="border rounded-lg overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Date</TableHead><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Notes</TableHead><TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {expenses.map((ex) => (
+              {filtered.map((ex) => (
                 <TableRow key={ex.id}>
                   <TableCell className="whitespace-nowrap">{ex.date}</TableCell>
                   <TableCell>{ex.category}</TableCell>
                   <TableCell className="text-right font-medium">{fmt(ex.amount)}</TableCell>
                   <TableCell className="max-w-[300px] truncate">{ex.notes}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(ex)}><Pencil className="h-4 w-4" /></Button>
-                  </TableCell>
+                  <TableCell><Button variant="ghost" size="sm" onClick={() => openEdit(ex)}><Pencil className="h-4 w-4" /></Button></TableCell>
                 </TableRow>
               ))}
-              {expenses.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No expenses yet</TableCell></TableRow>
-              )}
+              {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No expenses in this period</TableCell></TableRow>}
             </TableBody>
           </Table>
         </div>

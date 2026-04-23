@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,18 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/contexts/RoleContext";
 import { Plus, Pencil } from "lucide-react";
 
-const emptyForm = {
-  job_id: "",
-  date: new Date().toISOString().split("T")[0],
-  amount_paid: 0,
-  payment_method: "Cash",
-  payment_type: "Final",
-};
+type TimeRange = "week" | "month";
+
+function getRange(r: TimeRange) {
+  const now = new Date();
+  const end = now.toISOString().split("T")[0];
+  if (r === "week") { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); return { start: d.toISOString().split("T")[0], end }; }
+  return { start: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`, end };
+}
+
+const emptyForm = { job_id: "", date: new Date().toISOString().split("T")[0], amount_paid: 0, payment_method: "Cash", payment_type: "Final" };
 
 export default function PaymentsPage() {
   const { toast } = useToast();
@@ -26,192 +30,176 @@ export default function PaymentsPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [range, setRange] = useState<TimeRange>("month");
+  const [tab, setTab] = useState("payments");
 
   const { data: jobs = [] } = useQuery({
     queryKey: ["jobs"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("jobs").select("*, bookings(customer_name, vehicle)").order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => { const { data, error } = await supabase.from("jobs").select("*, bookings(customer_name, vehicle)").order("created_at", { ascending: false }); if (error) throw error; return data; },
   });
 
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ["payments"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payments")
-        .select("*, jobs(labour_charge, parts_cost, markup_percentage, bookings(customer_name, vehicle))")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => { const { data, error } = await supabase.from("payments").select("*, jobs(labour_charge, parts_cost, markup_percentage, bookings(customer_name, vehicle))").order("created_at", { ascending: false }); if (error) throw error; return data; },
   });
 
   const savePayment = useMutation({
     mutationFn: async () => {
-      const payload = {
-        job_id: form.job_id,
-        date: form.date,
-        amount_paid: form.amount_paid,
-        payment_method: form.payment_method,
-        payment_type: form.payment_type,
-      };
-      if (editId) {
-        const { error } = await supabase.from("payments").update(payload).eq("id", editId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("payments").insert(payload);
-        if (error) throw error;
-      }
+      const payload = { job_id: form.job_id, date: form.date, amount_paid: form.amount_paid, payment_method: form.payment_method, payment_type: form.payment_type };
+      if (editId) { const { error } = await supabase.from("payments").update(payload).eq("id", editId); if (error) throw error; }
+      else { const { error } = await supabase.from("payments").insert(payload); if (error) throw error; }
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["payments"] });
-      closeDialog();
-      toast({ title: editId ? "Payment updated" : "Payment recorded" });
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payments"] }); closeDialog(); toast({ title: editId ? "Payment updated" : "Payment recorded" }); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const fmt = (n: number) => `R ${n.toFixed(2)}`;
+  const getJobTotal = (j: { labour_charge: number; parts_cost: number; markup_percentage: number }) => j.labour_charge + j.parts_cost * (1 + j.markup_percentage / 100);
 
-  const paymentsByJob = payments.reduce<Record<string, number>>((acc, p) => {
-    acc[p.job_id] = (acc[p.job_id] || 0) + p.amount_paid;
-    return acc;
-  }, {});
+  const paymentsByJob = useMemo(() => payments.reduce<Record<string, number>>((acc, p) => { acc[p.job_id] = (acc[p.job_id] || 0) + p.amount_paid; return acc; }, {}), [payments]);
 
-  const getJobTotal = (j: { labour_charge: number; parts_cost: number; markup_percentage: number }) => {
-    return j.labour_charge + j.parts_cost * (1 + j.markup_percentage / 100);
-  };
+  const { start, end } = useMemo(() => getRange(range), [range]);
+  const filtered = useMemo(() => payments.filter((p) => p.date >= start && p.date <= end), [payments, start, end]);
 
-  const closeDialog = () => {
-    setOpen(false);
-    setEditId(null);
-    setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
-  };
+  // Outstanding: jobs with balance > 0
+  const outstandingJobs = useMemo(() => {
+    return jobs.map((j) => {
+      const b = j.bookings as { customer_name: string; vehicle: string } | null;
+      const total = getJobTotal(j);
+      const paid = paymentsByJob[j.id] || 0;
+      const balance = total - paid;
+      return { id: j.id, customer: b?.customer_name ?? "", vehicle: b?.vehicle ?? "", total, paid, balance };
+    }).filter((j) => j.balance > 0.01);
+  }, [jobs, paymentsByJob]);
 
-  const openEdit = (p: typeof payments[0]) => {
-    setEditId(p.id);
-    setForm({
-      job_id: p.job_id,
-      date: p.date,
-      amount_paid: p.amount_paid,
-      payment_method: p.payment_method,
-      payment_type: p.payment_type,
-    });
-    setOpen(true);
-  };
+  const closeDialog = () => { setOpen(false); setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); };
+  const openEdit = (p: typeof payments[0]) => { setEditId(p.id); setForm({ job_id: p.job_id, date: p.date, amount_paid: p.amount_paid, payment_method: p.payment_method, payment_type: p.payment_type }); setOpen(true); };
 
   const selectedJob = jobs.find((j) => j.id === form.job_id);
   const selectedJobTotal = selectedJob ? getJobTotal(selectedJob) : 0;
   const selectedJobPaid = paymentsByJob[form.job_id] || 0;
 
+  const filters: { label: string; value: TimeRange }[] = [{ label: "This Week", value: "week" }, { label: "This Month", value: "month" }];
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Payments</h2>
-        <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
-          <DialogTrigger asChild>
-            <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); }}>
-              <Plus className="mr-2 h-4 w-4" />Record Payment
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>{editId ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
-            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); savePayment.mutate(); }}>
-              <div>
-                <Label>Job *</Label>
-                <Select value={form.job_id} onValueChange={(v) => setForm({ ...form, job_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select job" /></SelectTrigger>
-                  <SelectContent>
-                    {jobs.map((j) => {
-                      const b = j.bookings as { customer_name: string; vehicle: string } | null;
-                      return <SelectItem key={j.id} value={j.id}>{b?.customer_name} — {b?.vehicle}</SelectItem>;
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-              {selectedJob && (
-                <div className="bg-muted p-3 rounded text-sm space-y-1">
+        <div className="flex items-center gap-2">
+          {tab === "payments" && (
+            <div className="flex gap-1">
+              {filters.map((f) => <Button key={f.value} size="sm" variant={range === f.value ? "default" : "outline"} onClick={() => setRange(f.value)}>{f.label}</Button>)}
+            </div>
+          )}
+          <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
+            <DialogTrigger asChild>
+              <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); }}><Plus className="mr-2 h-4 w-4" />Record Payment</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>{editId ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
+              <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); savePayment.mutate(); }}>
+                <div><Label>Job *</Label>
+                  <Select value={form.job_id} onValueChange={(v) => setForm({ ...form, job_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select job" /></SelectTrigger>
+                    <SelectContent>{jobs.map((j) => { const b = j.bookings as { customer_name: string; vehicle: string } | null; return <SelectItem key={j.id} value={j.id}>{b?.customer_name} — {b?.vehicle}</SelectItem>; })}</SelectContent>
+                  </Select>
+                </div>
+                {selectedJob && <div className="bg-muted p-3 rounded text-sm space-y-1">
                   <p>Job Total: <strong>{fmt(selectedJobTotal)}</strong></p>
                   <p>Already Paid: <strong>{fmt(selectedJobPaid)}</strong></p>
                   <p>Outstanding: <strong>{fmt(selectedJobTotal - selectedJobPaid)}</strong></p>
+                </div>}
+                <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+                <div><Label>Amount</Label><Input type="number" min={0} step={0.01} value={form.amount_paid} onChange={(e) => setForm({ ...form, amount_paid: +e.target.value })} /></div>
+                <div><Label>Method</Label>
+                  <Select value={form.payment_method} onValueChange={(v) => setForm({ ...form, payment_method: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Card">Card</SelectItem><SelectItem value="EFT">EFT</SelectItem></SelectContent>
+                  </Select>
                 </div>
-              )}
-              <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
-              <div><Label>Amount</Label><Input type="number" min={0} step={0.01} value={form.amount_paid} onChange={(e) => setForm({ ...form, amount_paid: +e.target.value })} /></div>
-              <div>
-                <Label>Method</Label>
-                <Select value={form.payment_method} onValueChange={(v) => setForm({ ...form, payment_method: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Cash">Cash</SelectItem>
-                    <SelectItem value="Card">Card</SelectItem>
-                    <SelectItem value="EFT">EFT</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Type</Label>
-                <Select value={form.payment_type} onValueChange={(v) => setForm({ ...form, payment_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Deposit">Deposit</SelectItem>
-                    <SelectItem value="Final">Final</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="submit" className="w-full" disabled={!form.job_id || savePayment.isPending}>{editId ? "Update Payment" : "Record Payment"}</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-      {isLoading ? (
-        <p className="text-muted-foreground">Loading...</p>
-      ) : (
-        <div className="border rounded-lg overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Vehicle</TableHead>
-                <TableHead className="text-right">Job Total</TableHead>
-                <TableHead className="text-right">Amount Paid</TableHead>
-                <TableHead className="text-right">Outstanding</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {payments.map((p) => {
-                const job = p.jobs as { labour_charge: number; parts_cost: number; markup_percentage: number; bookings: { customer_name: string; vehicle: string } | null } | null;
-                const jobTotal = job ? getJobTotal(job) : 0;
-                const totalPaidForJob = paymentsByJob[p.job_id] || 0;
-                return (
-                  <TableRow key={p.id}>
-                    <TableCell className="whitespace-nowrap">{p.date}</TableCell>
-                    <TableCell>{job?.bookings?.customer_name}</TableCell>
-                    <TableCell>{job?.bookings?.vehicle}</TableCell>
-                    <TableCell className="text-right">{fmt(jobTotal)}</TableCell>
-                    <TableCell className="text-right font-medium">{fmt(p.amount_paid)}</TableCell>
-                    <TableCell className="text-right">{fmt(jobTotal - totalPaidForJob)}</TableCell>
-                    <TableCell>{p.payment_method}</TableCell>
-                    <TableCell>{p.payment_type}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {payments.length === 0 && (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No payments yet</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+                <div><Label>Type</Label>
+                  <Select value={form.payment_type} onValueChange={(v) => setForm({ ...form, payment_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="Deposit">Deposit</SelectItem><SelectItem value="Final">Final</SelectItem></SelectContent>
+                  </Select>
+                </div>
+                <Button type="submit" className="w-full" disabled={!form.job_id || savePayment.isPending}>{editId ? "Update Payment" : "Record Payment"}</Button>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
-      )}
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="outstanding">Outstanding ({outstandingJobs.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="payments">
+          {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
+            <>
+              <p className="text-sm text-muted-foreground mb-3">{filtered.length} payment{filtered.length !== 1 ? "s" : ""} — Total: {fmt(filtered.reduce((s, p) => s + p.amount_paid, 0))}</p>
+              <div className="border rounded-lg overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Vehicle</TableHead>
+                      <TableHead className="text-right">Job Total</TableHead><TableHead className="text-right">Amount Paid</TableHead>
+                      <TableHead className="text-right">Outstanding</TableHead><TableHead>Method</TableHead><TableHead>Type</TableHead><TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((p) => {
+                      const job = p.jobs as { labour_charge: number; parts_cost: number; markup_percentage: number; bookings: { customer_name: string; vehicle: string } | null } | null;
+                      const jobTotal = job ? getJobTotal(job) : 0;
+                      const totalPaidForJob = paymentsByJob[p.job_id] || 0;
+                      return (
+                        <TableRow key={p.id}>
+                          <TableCell className="whitespace-nowrap">{p.date}</TableCell>
+                          <TableCell>{job?.bookings?.customer_name}</TableCell><TableCell>{job?.bookings?.vehicle}</TableCell>
+                          <TableCell className="text-right">{fmt(jobTotal)}</TableCell>
+                          <TableCell className="text-right font-medium">{fmt(p.amount_paid)}</TableCell>
+                          <TableCell className="text-right">{fmt(jobTotal - totalPaidForJob)}</TableCell>
+                          <TableCell>{p.payment_method}</TableCell><TableCell>{p.payment_type}</TableCell>
+                          <TableCell><Button variant="ghost" size="sm" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button></TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {filtered.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No payments in this period</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="outstanding">
+          <p className="text-sm text-muted-foreground mb-3">Jobs with outstanding balances</p>
+          <div className="border rounded-lg overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead><TableHead>Vehicle</TableHead>
+                  <TableHead className="text-right">Job Total</TableHead><TableHead className="text-right">Paid</TableHead>
+                  <TableHead className="text-right">Outstanding</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {outstandingJobs.map((j) => (
+                  <TableRow key={j.id}>
+                    <TableCell>{j.customer}</TableCell><TableCell>{j.vehicle}</TableCell>
+                    <TableCell className="text-right">{fmt(j.total)}</TableCell>
+                    <TableCell className="text-right">{fmt(j.paid)}</TableCell>
+                    <TableCell className="text-right font-medium text-destructive">{fmt(j.balance)}</TableCell>
+                  </TableRow>
+                ))}
+                {outstandingJobs.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No outstanding balances</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
