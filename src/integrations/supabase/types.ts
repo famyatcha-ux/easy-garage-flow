@@ -221,34 +221,52 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          account_holder_name: string | null
           account_number: string | null
+          account_type: string | null
+          bank_name: string | null
+          branch_code: string | null
           contact_person: string | null
           created_at: string
+          credit_limit: number | null
           email: string | null
           id: string
           notes: string | null
+          payment_terms: string | null
           phone_number: string | null
           supplier_name: string
           updated_at: string
         }
         Insert: {
+          account_holder_name?: string | null
           account_number?: string | null
+          account_type?: string | null
+          bank_name?: string | null
+          branch_code?: string | null
           contact_person?: string | null
           created_at?: string
+          credit_limit?: number | null
           email?: string | null
           id?: string
           notes?: string | null
+          payment_terms?: string | null
           phone_number?: string | null
           supplier_name: string
           updated_at?: string
         }
         Update: {
+          account_holder_name?: string | null
           account_number?: string | null
+          account_type?: string | null
+          bank_name?: string | null
+          branch_code?: string | null
           contact_person?: string | null
           created_at?: string
+          credit_limit?: number | null
           email?: string | null
           id?: string
           notes?: string | null
+          payment_terms?: string | null
           phone_number?: string | null
           supplier_name?: string
           updated_at?: string
