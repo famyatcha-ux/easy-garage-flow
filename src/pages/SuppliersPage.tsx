@@ -224,21 +224,34 @@ export default function SuppliersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Supplier Name</TableHead>
-                    <TableHead>Contact Person</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Email</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Bank</TableHead>
+                    <TableHead>Terms</TableHead>
                     <TableHead className="text-right">Purchases</TableHead>
                     <TableHead className="text-right">Payments</TableHead>
                     <TableHead className="text-right">Outstanding</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {supplierBalances.map((s) => (
+                  {supplierBalances.map((s: any) => (
                     <TableRow key={s.id}>
-                      <TableCell className="font-medium">{s.supplier_name}</TableCell>
-                      <TableCell>{s.contact_person}</TableCell>
-                      <TableCell>{s.phone_number}</TableCell>
-                      <TableCell>{s.email}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{s.supplier_name}</div>
+                        {s.phone_number && <div className="text-xs text-muted-foreground">{s.phone_number}</div>}
+                      </TableCell>
+                      <TableCell>
+                        <div>{s.contact_person}</div>
+                        {s.email && <div className="text-xs text-muted-foreground">{s.email}</div>}
+                      </TableCell>
+                      <TableCell>
+                        {s.bank_name ? (
+                          <div className="text-xs">
+                            <div>{s.bank_name}</div>
+                            <div className="text-muted-foreground">{s.account_number} ({s.account_type})</div>
+                          </div>
+                        ) : <span className="text-muted-foreground text-xs">—</span>}
+                      </TableCell>
+                      <TableCell className="text-xs">{s.payment_terms || "—"}</TableCell>
                       <TableCell className="text-right">{fmt(s.totalPurchases)}</TableCell>
                       <TableCell className="text-right">{fmt(s.totalPayments)}</TableCell>
                       <TableCell className={`text-right font-medium ${s.outstanding > 0 ? "text-destructive" : "text-primary"}`}>{fmt(s.outstanding)}</TableCell>
