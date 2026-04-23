@@ -73,15 +73,25 @@ export default function SuppliersPage() {
     },
   });
 
+  const emptySupplierForm = {
+    supplier_name: "", contact_person: "", phone_number: "", email: "", account_number: "",
+    bank_name: "", account_holder_name: "", branch_code: "", account_type: "Cheque",
+    payment_terms: "", credit_limit: "", notes: "",
+  };
+
   const addSupplier = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("suppliers").insert([supplierForm]);
+      const payload = {
+        ...supplierForm,
+        credit_limit: supplierForm.credit_limit ? Number(supplierForm.credit_limit) : null,
+      };
+      const { error } = await supabase.from("suppliers").insert([payload]);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
       setSupplierOpen(false);
-      setSupplierForm({ supplier_name: "", contact_person: "", phone_number: "", email: "", account_number: "", notes: "" });
+      setSupplierForm(emptySupplierForm);
       toast({ title: "Supplier added" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
