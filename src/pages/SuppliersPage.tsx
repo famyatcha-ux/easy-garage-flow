@@ -173,14 +173,44 @@ export default function SuppliersPage() {
               <DialogTrigger asChild>
                 <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Supplier</Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
                 <DialogHeader><DialogTitle>Add Supplier</DialogTitle></DialogHeader>
                 <div className="grid gap-3">
                   <div><Label>Supplier Name *</Label><Input value={supplierForm.supplier_name} onChange={(e) => setSupplierForm({ ...supplierForm, supplier_name: e.target.value })} /></div>
                   <div><Label>Contact Person</Label><Input value={supplierForm.contact_person} onChange={(e) => setSupplierForm({ ...supplierForm, contact_person: e.target.value })} /></div>
                   <div><Label>Phone Number</Label><Input value={supplierForm.phone_number} onChange={(e) => setSupplierForm({ ...supplierForm, phone_number: e.target.value })} /></div>
                   <div><Label>Email</Label><Input type="email" value={supplierForm.email} onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })} /></div>
-                  <div><Label>Account Number</Label><Input value={supplierForm.account_number} onChange={(e) => setSupplierForm({ ...supplierForm, account_number: e.target.value })} /></div>
+
+                  <div className="border-t pt-3 mt-1">
+                    <p className="text-sm font-semibold mb-2">Bank Details</p>
+                    <div className="grid gap-3">
+                      <div><Label>Bank Name</Label><Input value={supplierForm.bank_name} onChange={(e) => setSupplierForm({ ...supplierForm, bank_name: e.target.value })} /></div>
+                      <div><Label>Account Holder Name</Label><Input value={supplierForm.account_holder_name} onChange={(e) => setSupplierForm({ ...supplierForm, account_holder_name: e.target.value })} /></div>
+                      <div><Label>Account Number</Label><Input value={supplierForm.account_number} onChange={(e) => setSupplierForm({ ...supplierForm, account_number: e.target.value })} /></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><Label>Branch Code</Label><Input value={supplierForm.branch_code} onChange={(e) => setSupplierForm({ ...supplierForm, branch_code: e.target.value })} /></div>
+                        <div>
+                          <Label>Account Type</Label>
+                          <Select value={supplierForm.account_type} onValueChange={(v) => setSupplierForm({ ...supplierForm, account_type: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Cheque">Cheque</SelectItem>
+                              <SelectItem value="Savings">Savings</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-3 mt-1">
+                    <p className="text-sm font-semibold mb-2">Additional</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Payment Terms</Label><Input value={supplierForm.payment_terms} onChange={(e) => setSupplierForm({ ...supplierForm, payment_terms: e.target.value })} placeholder="e.g. 30 days" /></div>
+                      <div><Label>Credit Limit</Label><Input type="number" value={supplierForm.credit_limit} onChange={(e) => setSupplierForm({ ...supplierForm, credit_limit: e.target.value })} /></div>
+                    </div>
+                  </div>
+
                   <div><Label>Notes</Label><Textarea value={supplierForm.notes} onChange={(e) => setSupplierForm({ ...supplierForm, notes: e.target.value })} /></div>
                   <Button onClick={() => addSupplier.mutate()} disabled={!supplierForm.supplier_name}>Save</Button>
                 </div>
