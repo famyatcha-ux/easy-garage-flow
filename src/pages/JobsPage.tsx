@@ -10,22 +10,25 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/contexts/RoleContext";
 import { generateInvoice } from "@/lib/generateInvoice";
-import { Plus, FileText } from "lucide-react";
+import { Plus, FileText, Pencil } from "lucide-react";
 
 const JOB_STATUSES = ["Pending", "In Progress", "Completed"] as const;
+
+const emptyForm = {
+  booking_id: "",
+  date: new Date().toISOString().split("T")[0],
+  labour_charge: 0,
+  parts_cost: 0,
+  markup_percentage: 0,
+};
 
 export default function JobsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { isAdmin } = useRole();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    booking_id: "",
-    date: new Date().toISOString().split("T")[0],
-    labour_charge: 0,
-    parts_cost: 0,
-    markup_percentage: 0,
-  });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState({ ...emptyForm });
 
   const { data: bookings = [] } = useQuery({
     queryKey: ["bookings"],
@@ -48,25 +51,38 @@ export default function JobsPage() {
     },
   });
 
-  const addJob = useMutation({
-    mutationFn: async (j: typeof form) => {
-      const insertData: Record<string, unknown> = {
-        booking_id: j.booking_id,
-        date: j.date,
-      };
-      if (isAdmin) {
-        insertData.labour_charge = j.labour_charge;
-        insertData.parts_cost = j.parts_cost;
-        insertData.markup_percentage = j.markup_percentage;
+  const saveJob = useMutation({
+    mutationFn: async () => {
+      if (editId) {
+        const updateData: Record<string, unknown> = {
+          booking_id: form.booking_id,
+          date: form.date,
+        };
+        if (isAdmin) {
+          updateData.labour_charge = form.labour_charge;
+          updateData.parts_cost = form.parts_cost;
+          updateData.markup_percentage = form.markup_percentage;
+        }
+        const { error } = await supabase.from("jobs").update(updateData as any).eq("id", editId);
+        if (error) throw error;
+      } else {
+        const insertData: Record<string, unknown> = {
+          booking_id: form.booking_id,
+          date: form.date,
+        };
+        if (isAdmin) {
+          insertData.labour_charge = form.labour_charge;
+          insertData.parts_cost = form.parts_cost;
+          insertData.markup_percentage = form.markup_percentage;
+        }
+        const { error } = await supabase.from("jobs").insert(insertData as any);
+        if (error) throw error;
       }
-      const { error } = await supabase.from("jobs").insert(insertData as any);
-      if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["jobs"] });
-      setOpen(false);
-      setForm({ booking_id: "", date: new Date().toISOString().split("T")[0], labour_charge: 0, parts_cost: 0, markup_percentage: 0 });
-      toast({ title: "Job created" });
+      closeDialog();
+      toast({ title: editId ? "Job updated" : "Job created" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -88,6 +104,24 @@ export default function JobsPage() {
 
   const fmt = (n: number) => `R ${n.toFixed(2)}`;
 
+  const closeDialog = () => {
+    setOpen(false);
+    setEditId(null);
+    setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
+  };
+
+  const openEdit = (j: typeof jobs[0]) => {
+    setEditId(j.id);
+    setForm({
+      booking_id: j.booking_id,
+      date: j.date,
+      labour_charge: j.labour_charge,
+      parts_cost: j.parts_cost,
+      markup_percentage: j.markup_percentage,
+    });
+    setOpen(true);
+  };
+
   const handleInvoice = (job: typeof jobs[0]) => {
     const booking = job.bookings as { customer_name: string; vehicle: string; registration: string | null } | null;
     const c = calc(job);
@@ -108,13 +142,15 @@ export default function JobsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Jobs</h2>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" />New Job</Button>
+            <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); }}>
+              <Plus className="mr-2 h-4 w-4" />New Job
+            </Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>New Job</DialogTitle></DialogHeader>
-            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); addJob.mutate(form); }}>
+            <DialogHeader><DialogTitle>{editId ? "Edit Job" : "New Job"}</DialogTitle></DialogHeader>
+            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); saveJob.mutate(); }}>
               <div>
                 <Label>Booking *</Label>
                 <Select value={form.booking_id} onValueChange={(v) => setForm({ ...form, booking_id: v })}>
@@ -143,7 +179,7 @@ export default function JobsPage() {
                   )}
                 </>
               )}
-              <Button type="submit" className="w-full" disabled={!form.booking_id || addJob.isPending}>Create Job</Button>
+              <Button type="submit" className="w-full" disabled={!form.booking_id || saveJob.isPending}>{editId ? "Update Job" : "Create Job"}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -179,13 +215,9 @@ export default function JobsPage() {
                     <TableCell>{booking?.vehicle}</TableCell>
                     <TableCell>
                       <Select value={(j as any).status ?? "Pending"} onValueChange={(v) => updateStatus.mutate({ id: j.id, status: v })}>
-                        <SelectTrigger className="w-[120px]">
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {JOB_STATUSES.map((s) => (
-                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                          ))}
+                          {JOB_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </TableCell>
@@ -195,10 +227,9 @@ export default function JobsPage() {
                     {isAdmin && <TableCell className="text-right">{fmt(c.partsSellingPrice)}</TableCell>}
                     {isAdmin && <TableCell className="text-right font-medium">{fmt(c.totalValue)}</TableCell>}
                     {isAdmin && <TableCell className="text-right font-medium">{fmt(c.profit)}</TableCell>}
-                    <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => handleInvoice(j)} title="Generate Invoice">
-                        <FileText className="h-4 w-4" />
-                      </Button>
+                    <TableCell className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(j)} title="Edit"><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleInvoice(j)} title="Invoice"><FileText className="h-4 w-4" /></Button>
                     </TableCell>
                   </TableRow>
                 );

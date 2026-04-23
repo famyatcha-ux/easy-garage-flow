@@ -9,20 +9,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 
 const CATEGORIES = ["Parts Purchase", "Rent", "Salaries", "Fuel", "Other"] as const;
+
+const emptyForm = {
+  date: new Date().toISOString().split("T")[0],
+  category: "Parts Purchase",
+  amount: 0,
+  notes: "",
+};
 
 export default function ExpensesPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    date: new Date().toISOString().split("T")[0],
-    category: "Parts Purchase",
-    amount: 0,
-    notes: "",
-  });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState({ ...emptyForm });
 
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ["expenses"],
@@ -33,38 +36,62 @@ export default function ExpensesPage() {
     },
   });
 
-  const addExpense = useMutation({
-    mutationFn: async (e: typeof form) => {
-      const { error } = await supabase.from("expenses").insert({
-        date: e.date,
-        category: e.category,
-        amount: e.amount,
-        notes: e.notes || null,
-      });
-      if (error) throw error;
+  const saveExpense = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        date: form.date,
+        category: form.category,
+        amount: form.amount,
+        notes: form.notes || null,
+      };
+      if (editId) {
+        const { error } = await supabase.from("expenses").update(payload).eq("id", editId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("expenses").insert(payload);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["expenses"] });
-      setOpen(false);
-      setForm({ date: new Date().toISOString().split("T")[0], category: "Parts Purchase", amount: 0, notes: "" });
-      toast({ title: "Expense added" });
+      closeDialog();
+      toast({ title: editId ? "Expense updated" : "Expense added" });
     },
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const fmt = (n: number) => `R ${n.toFixed(2)}`;
 
+  const closeDialog = () => {
+    setOpen(false);
+    setEditId(null);
+    setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
+  };
+
+  const openEdit = (ex: typeof expenses[0]) => {
+    setEditId(ex.id);
+    setForm({
+      date: ex.date,
+      category: ex.category,
+      amount: ex.amount,
+      notes: ex.notes ?? "",
+    });
+    setOpen(true);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Expenses</h2>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" />Add Expense</Button>
+            <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); }}>
+              <Plus className="mr-2 h-4 w-4" />Add Expense
+            </Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Add Expense</DialogTitle></DialogHeader>
-            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); addExpense.mutate(form); }}>
+            <DialogHeader><DialogTitle>{editId ? "Edit Expense" : "Add Expense"}</DialogTitle></DialogHeader>
+            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); saveExpense.mutate(); }}>
               <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
               <div>
                 <Label>Category</Label>
@@ -77,7 +104,7 @@ export default function ExpensesPage() {
               </div>
               <div><Label>Amount</Label><Input type="number" min={0} step={0.01} value={form.amount} onChange={(e) => setForm({ ...form, amount: +e.target.value })} /></div>
               <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-              <Button type="submit" className="w-full" disabled={addExpense.isPending}>Add Expense</Button>
+              <Button type="submit" className="w-full" disabled={saveExpense.isPending}>{editId ? "Update Expense" : "Add Expense"}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -93,6 +120,7 @@ export default function ExpensesPage() {
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Notes</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -102,10 +130,13 @@ export default function ExpensesPage() {
                   <TableCell>{ex.category}</TableCell>
                   <TableCell className="text-right font-medium">{fmt(ex.amount)}</TableCell>
                   <TableCell className="max-w-[300px] truncate">{ex.notes}</TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(ex)}><Pencil className="h-4 w-4" /></Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {expenses.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No expenses yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No expenses yet</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
