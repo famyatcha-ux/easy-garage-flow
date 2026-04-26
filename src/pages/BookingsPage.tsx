@@ -15,35 +15,6 @@ import type { TablesInsert } from "@/integrations/supabase/types";
 import { Plus, Pencil } from "lucide-react";
 
 const STATUSES = ["Booked", "In Progress", "Completed", "Collected"] as const;
-type TimeRange = "today" | "week" | "month";
-
-// Common vehicle makes in South Africa
-const VEHICLE_MAKES = [
-  "Toyota", "Volkswagen", "Ford", "Hyundai", "Nissan", "Kia", "Renault", "Suzuki",
-  "Mahindra", "Isuzu", "Mazda", "Honda", "Mercedes-Benz", "BMW", "Audi", "Mitsubishi",
-  "Chevrolet", "Opel", "Peugeot", "Fiat", "Land Rover", "Jeep", "Volvo", "Datsun",
-  "Haval", "Chery", "GWM", "Tata", "Other",
-] as const;
-
-function splitVehicle(v: string): { make: string; model: string } {
-  if (!v) return { make: "", model: "" };
-  const trimmed = v.trim();
-  const known = VEHICLE_MAKES.find((m) => m !== "Other" && trimmed.toLowerCase().startsWith(m.toLowerCase()));
-  if (known) return { make: known, model: trimmed.slice(known.length).trim() };
-  const [first, ...rest] = trimmed.split(" ");
-  return { make: first ?? "", model: rest.join(" ") };
-}
-
-function getRange(r: TimeRange) {
-  const now = new Date();
-  const end = now.toISOString().split("T")[0];
-  if (r === "today") return { start: end, end };
-  if (r === "week") {
-    const d = new Date(now); d.setDate(d.getDate() - d.getDay());
-    return { start: d.toISOString().split("T")[0], end };
-  }
-  return { start: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`, end };
-}
 
 const emptyForm: TablesInsert<"bookings"> = {
   customer_name: "", vehicle: "", contact_number: "", registration: "", problem_description: "",
