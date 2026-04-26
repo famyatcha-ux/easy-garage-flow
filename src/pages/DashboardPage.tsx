@@ -1,26 +1,14 @@
 import { useState, useMemo } from "react";
+import { MonthSelector } from "@/components/MonthSelector";
+import { getMonthRange, getCurrentMonthIndex, getCurrentYear } from "@/lib/monthRange";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, Wrench } from "lucide-react";
 
-type TimeRange = "today" | "week" | "month";
-
-function getDateRange(range: TimeRange): { start: string; end: string } {
-  const now = new Date();
-  const end = now.toISOString().split("T")[0];
-  let start: string;
-  if (range === "today") {
-    start = end;
-  } else if (range === "week") {
-    const d = new Date(now);
-    d.setDate(d.getDate() - d.getDay()); // Sunday start
-    start = d.toISOString().split("T")[0];
-  } else {
-    start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-  }
-  return { start, end };
+function inRange(dateStr: string, start: string, end: string) {
+  return dateStr >= start && dateStr <= end;
 }
 
 function inRange(dateStr: string, start: string, end: string) {
@@ -28,8 +16,8 @@ function inRange(dateStr: string, start: string, end: string) {
 }
 
 export default function DashboardPage() {
-  const [range, setRange] = useState<TimeRange>("month");
-  const { start, end } = useMemo(() => getDateRange(range), [range]);
+  const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
+  const { start, end } = useMemo(() => getMonthRange(getCurrentYear(), monthIdx), [monthIdx]);
 
   const { data: jobs = [] } = useQuery({
     queryKey: ["jobs"],

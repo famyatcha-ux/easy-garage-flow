@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { MonthSelector } from "@/components/MonthSelector";
+import { getMonthRange, getCurrentMonthIndex, getCurrentYear } from "@/lib/monthRange";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,14 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil } from "lucide-react";
 
 const CATEGORIES = ["Parts Purchase", "Rent", "Salaries", "Fuel", "Other"] as const;
-type TimeRange = "week" | "month";
-
-function getRange(r: TimeRange) {
-  const now = new Date();
-  const end = now.toISOString().split("T")[0];
-  if (r === "week") { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); return { start: d.toISOString().split("T")[0], end }; }
-  return { start: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`, end };
-}
+const CATEGORIES_END = "" as const;
 
 const emptyForm = { date: new Date().toISOString().split("T")[0], category: "Parts Purchase", amount: 0, notes: "" };
 
@@ -29,14 +24,14 @@ export default function ExpensesPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
-  const [range, setRange] = useState<TimeRange>("month");
+  const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
 
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ["expenses"],
     queryFn: async () => { const { data, error } = await supabase.from("expenses").select("*").order("date", { ascending: false }); if (error) throw error; return data; },
   });
 
-  const { start, end } = useMemo(() => getRange(range), [range]);
+  const { start, end } = useMemo(() => getMonthRange(getCurrentYear(), monthIdx), [monthIdx]);
   const filtered = useMemo(() => expenses.filter((e) => e.date >= start && e.date <= end), [expenses, start, end]);
   const totalFiltered = useMemo(() => filtered.reduce((s, e) => s + e.amount, 0), [filtered]);
 
@@ -54,15 +49,12 @@ export default function ExpensesPage() {
   const closeDialog = () => { setOpen(false); setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); };
   const openEdit = (ex: typeof expenses[0]) => { setEditId(ex.id); setForm({ date: ex.date, category: ex.category, amount: ex.amount, notes: ex.notes ?? "" }); setOpen(true); };
 
-  const filters: { label: string; value: TimeRange }[] = [{ label: "This Week", value: "week" }, { label: "This Month", value: "month" }];
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Expenses</h2>
         <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            {filters.map((f) => <Button key={f.value} size="sm" variant={range === f.value ? "default" : "outline"} onClick={() => setRange(f.value)}>{f.label}</Button>)}
+          <MonthSelector value={monthIdx} onChange={setMonthIdx} />
           </div>
           <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
             <DialogTrigger asChild>
