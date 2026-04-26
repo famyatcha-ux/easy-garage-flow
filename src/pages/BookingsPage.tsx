@@ -15,6 +15,23 @@ import { Plus, Pencil } from "lucide-react";
 const STATUSES = ["Booked", "In Progress", "Completed", "Collected"] as const;
 type TimeRange = "today" | "week" | "month";
 
+// Common vehicle makes in South Africa
+const VEHICLE_MAKES = [
+  "Toyota", "Volkswagen", "Ford", "Hyundai", "Nissan", "Kia", "Renault", "Suzuki",
+  "Mahindra", "Isuzu", "Mazda", "Honda", "Mercedes-Benz", "BMW", "Audi", "Mitsubishi",
+  "Chevrolet", "Opel", "Peugeot", "Fiat", "Land Rover", "Jeep", "Volvo", "Datsun",
+  "Haval", "Chery", "GWM", "Tata", "Other",
+] as const;
+
+function splitVehicle(v: string): { make: string; model: string } {
+  if (!v) return { make: "", model: "" };
+  const trimmed = v.trim();
+  const known = VEHICLE_MAKES.find((m) => m !== "Other" && trimmed.toLowerCase().startsWith(m.toLowerCase()));
+  if (known) return { make: known, model: trimmed.slice(known.length).trim() };
+  const [first, ...rest] = trimmed.split(" ");
+  return { make: first ?? "", model: rest.join(" ") };
+}
+
 function getRange(r: TimeRange) {
   const now = new Date();
   const end = now.toISOString().split("T")[0];
@@ -37,6 +54,8 @@ export default function BookingsPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<TablesInsert<"bookings">>({ ...emptyForm });
+  const [make, setMake] = useState("");
+  const [model, setModel] = useState("");
   const [range, setRange] = useState<TimeRange>("month");
 
   const { data: bookings = [], isLoading } = useQuery({
@@ -53,15 +72,18 @@ export default function BookingsPage() {
 
   const saveBooking = useMutation({
     mutationFn: async () => {
+      const vehicle = `${make.trim()} ${model.trim()}`.trim();
+      if (!vehicle) throw new Error("Vehicle make is required");
+      const payload = { ...form, vehicle };
       if (editId) {
         const { error } = await supabase.from("bookings").update({
-          customer_name: form.customer_name, vehicle: form.vehicle,
-          contact_number: form.contact_number || null, registration: form.registration || null,
-          problem_description: form.problem_description || null, date: form.date,
+          customer_name: payload.customer_name, vehicle: payload.vehicle,
+          contact_number: payload.contact_number || null, registration: payload.registration || null,
+          problem_description: payload.problem_description || null, date: payload.date,
         }).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("bookings").insert(form);
+        const { error } = await supabase.from("bookings").insert(payload);
         if (error) throw error;
       }
     },
@@ -77,10 +99,16 @@ export default function BookingsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["bookings"] }),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); };
+  const closeDialog = () => {
+    setOpen(false); setEditId(null);
+    setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
+    setMake(""); setModel("");
+  };
   const openEdit = (b: typeof bookings[0]) => {
     setEditId(b.id);
     setForm({ customer_name: b.customer_name, vehicle: b.vehicle, contact_number: b.contact_number ?? "", registration: b.registration ?? "", problem_description: b.problem_description ?? "", date: b.date });
+    const { make: mk, model: md } = splitVehicle(b.vehicle);
+    setMake(mk); setModel(md);
     setOpen(true);
   };
 
@@ -100,7 +128,7 @@ export default function BookingsPage() {
           </div>
           <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
             <DialogTrigger asChild>
-              <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); }}><Plus className="mr-2 h-4 w-4" />New Booking</Button>
+              <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); setMake(""); setModel(""); }}><Plus className="mr-2 h-4 w-4" />New Booking</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>{editId ? "Edit Booking" : "New Booking"}</DialogTitle></DialogHeader>
@@ -108,7 +136,21 @@ export default function BookingsPage() {
                 <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
                 <div><Label>Customer Name *</Label><Input required value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} /></div>
                 <div><Label>Contact Number</Label><Input value={form.contact_number ?? ""} onChange={(e) => setForm({ ...form, contact_number: e.target.value })} /></div>
-                <div><Label>Vehicle (Make/Model) *</Label><Input required value={form.vehicle} onChange={(e) => setForm({ ...form, vehicle: e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Make *</Label>
+                    <Select value={make} onValueChange={setMake}>
+                      <SelectTrigger><SelectValue placeholder="Select make" /></SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        {VEHICLE_MAKES.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Model</Label>
+                    <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. Hilux 2.4" />
+                  </div>
+                </div>
                 <div><Label>Registration</Label><Input value={form.registration ?? ""} onChange={(e) => setForm({ ...form, registration: e.target.value })} /></div>
                 <div><Label>Problem Description</Label><Textarea value={form.problem_description ?? ""} onChange={(e) => setForm({ ...form, problem_description: e.target.value })} /></div>
                 <Button type="submit" className="w-full" disabled={saveBooking.isPending}>{editId ? "Update Booking" : "Add Booking"}</Button>
