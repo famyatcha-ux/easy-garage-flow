@@ -83,12 +83,51 @@ export type Database = {
         }
         Relationships: []
       }
+      job_line_items: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          job_id: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description: string
+          id?: string
+          job_id: string
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          job_id?: string
+          position?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_line_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           booking_id: string
           created_at: string
           date: string
           id: string
+          invoice_number: number | null
           labour_charge: number
           markup_percentage: number
           parts_cost: number
@@ -100,6 +139,7 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          invoice_number?: number | null
           labour_charge?: number
           markup_percentage?: number
           parts_cost?: number
@@ -111,6 +151,7 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          invoice_number?: number | null
           labour_charge?: number
           markup_percentage?: number
           parts_cost?: number
