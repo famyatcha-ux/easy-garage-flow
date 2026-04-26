@@ -1,57 +1,119 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-interface InvoiceData {
-  customerName: string;
-  vehicle: string;
-  registration: string | null;
-  labourCharge: number;
-  partsSellingPrice: number;
-  totalAmount: number;
-  date: string;
+export interface InvoiceLineItem {
+  description: string;
+  amount: number;
 }
+
+export interface InvoiceData {
+  businessName?: string;
+  invoiceNumber: string | number;
+  date: string;
+  customerName: string;
+  contactNumber?: string | null;
+  vehicle: string;
+  registration?: string | null;
+  lineItems: InvoiceLineItem[];
+  partsSellingPrice: number;
+  amountPaid: number;
+}
+
+const fmt = (n: number) => `R ${n.toFixed(2)}`;
 
 export function generateInvoice(data: InvoiceData) {
   const doc = new jsPDF();
-  const fmt = (n: number) => `R ${n.toFixed(2)}`;
+  const businessName = data.businessName || "Workshop";
+  const totalLabour = data.lineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0);
+  const totalValue = totalLabour + data.partsSellingPrice;
+  const balanceDue = totalValue - data.amountPaid;
 
   // Header
-  doc.setFontSize(20);
+  doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
-  doc.text("INVOICE", 105, 25, { align: "center" });
+  doc.text(businessName, 20, 22);
 
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Workshop", 105, 33, { align: "center" });
+  doc.setFontSize(18);
+  doc.setTextColor(100);
+  doc.text("INVOICE", 190, 22, { align: "right" });
+  doc.setTextColor(0);
 
-  // Line
-  doc.setDrawColor(200);
-  doc.line(20, 38, 190, 38);
-
-  // Customer details
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  const y = 48;
-  doc.text(`Date: ${data.date}`, 20, y);
-  doc.text(`Customer: ${data.customerName}`, 20, y + 8);
-  doc.text(`Vehicle: ${data.vehicle}`, 20, y + 16);
-  if (data.registration) {
-    doc.text(`Registration: ${data.registration}`, 20, y + 24);
-  }
+  doc.text(`Invoice #: ${String(data.invoiceNumber)}`, 190, 30, { align: "right" });
+  doc.text(`Date: ${data.date}`, 190, 36, { align: "right" });
 
-  // Table
+  doc.setDrawColor(200);
+  doc.line(20, 42, 190, 42);
+
+  // Customer details
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Bill To", 20, 50);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  let y = 56;
+  doc.text(data.customerName, 20, y);
+  if (data.contactNumber) { y += 6; doc.text(`Contact: ${data.contactNumber}`, 20, y); }
+  y += 6; doc.text(`Vehicle: ${data.vehicle}`, 20, y);
+  if (data.registration) { y += 6; doc.text(`Registration: ${data.registration}`, 20, y); }
+
+  // Work performed table
+  const workRows = data.lineItems.length
+    ? data.lineItems.map((li) => [li.description || "-", fmt(Number(li.amount) || 0)])
+    : [["No work items", fmt(0)]];
+
   autoTable(doc, {
-    startY: y + 34,
-    head: [["Description", "Amount"]],
-    body: [
-      ["Labour Charge", fmt(data.labourCharge)],
-      ["Parts", fmt(data.partsSellingPrice)],
-    ],
-    foot: [["Total", fmt(data.totalAmount)]],
+    startY: y + 10,
+    head: [["Work Performed", "Amount"]],
+    body: workRows,
     theme: "grid",
     headStyles: { fillColor: [60, 60, 60] },
-    footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold" },
     styles: { fontSize: 10 },
+    columnStyles: { 1: { halign: "right", cellWidth: 40 } },
+  });
+
+  // Charges table
+  // @ts-expect-error - autoTable adds lastAutoTable
+  const afterWork = doc.lastAutoTable.finalY + 6;
+
+  autoTable(doc, {
+    startY: afterWork,
+    body: [
+      ["Total Labour", fmt(totalLabour)],
+      ["Parts", fmt(data.partsSellingPrice)],
+    ],
+    theme: "plain",
+    styles: { fontSize: 10 },
+    columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right", cellWidth: 40 } },
+    margin: { left: 110 },
+  });
+
+  // @ts-expect-error - autoTable adds lastAutoTable
+  const afterCharges = doc.lastAutoTable.finalY + 4;
+
+  // Totals box
+  autoTable(doc, {
+    startY: afterCharges,
+    body: [
+      ["Total Job Value", fmt(totalValue)],
+      ["Less: Amount Paid", `- ${fmt(data.amountPaid)}`],
+      ["Balance Due", fmt(balanceDue)],
+    ],
+    theme: "grid",
+    styles: { fontSize: 11 },
+    bodyStyles: { fillColor: [250, 250, 250] },
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 45 },
+      1: { halign: "right", cellWidth: 35, fontStyle: "bold" },
+    },
+    margin: { left: 110 },
+    didParseCell: (h) => {
+      if (h.row.index === 2) {
+        h.cell.styles.fillColor = [230, 230, 230];
+        h.cell.styles.fontSize = 12;
+      }
+    },
   });
 
   // Footer
