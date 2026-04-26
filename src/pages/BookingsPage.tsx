@@ -57,7 +57,7 @@ export default function BookingsPage() {
     },
   });
 
-  const { start, end } = useMemo(() => getRange(range), [range]);
+  const { start, end } = useMemo(() => getMonthRange(getCurrentYear(), monthIdx), [monthIdx]);
   const filtered = useMemo(() => bookings.filter((b) => b.date >= start && b.date <= end), [bookings, start, end]);
 
   const saveBooking = useMutation({
