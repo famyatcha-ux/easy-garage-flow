@@ -11,9 +11,6 @@ function inRange(dateStr: string, start: string, end: string) {
   return dateStr >= start && dateStr <= end;
 }
 
-function inRange(dateStr: string, start: string, end: string) {
-  return dateStr >= start && dateStr <= end;
-}
 
 export default function DashboardPage() {
   const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
