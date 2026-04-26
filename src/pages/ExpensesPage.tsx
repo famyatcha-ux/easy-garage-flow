@@ -55,7 +55,6 @@ export default function ExpensesPage() {
         <h2 className="text-2xl font-bold">Expenses</h2>
         <div className="flex items-center gap-2">
           <MonthSelector value={monthIdx} onChange={setMonthIdx} />
-          </div>
           <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
             <DialogTrigger asChild>
               <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); }}><Plus className="mr-2 h-4 w-4" />Add Expense</Button>
