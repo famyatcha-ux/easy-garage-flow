@@ -128,7 +128,7 @@ export default function BookingsPage() {
           </div>
           <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
             <DialogTrigger asChild>
-              <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); }}><Plus className="mr-2 h-4 w-4" />New Booking</Button>
+              <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); setMake(""); setModel(""); }}><Plus className="mr-2 h-4 w-4" />New Booking</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>{editId ? "Edit Booking" : "New Booking"}</DialogTitle></DialogHeader>
