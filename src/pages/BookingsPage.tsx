@@ -136,7 +136,21 @@ export default function BookingsPage() {
                 <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
                 <div><Label>Customer Name *</Label><Input required value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} /></div>
                 <div><Label>Contact Number</Label><Input value={form.contact_number ?? ""} onChange={(e) => setForm({ ...form, contact_number: e.target.value })} /></div>
-                <div><Label>Vehicle (Make/Model) *</Label><Input required value={form.vehicle} onChange={(e) => setForm({ ...form, vehicle: e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Make *</Label>
+                    <Select value={make} onValueChange={setMake}>
+                      <SelectTrigger><SelectValue placeholder="Select make" /></SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        {VEHICLE_MAKES.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Model</Label>
+                    <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. Hilux 2.4" />
+                  </div>
+                </div>
                 <div><Label>Registration</Label><Input value={form.registration ?? ""} onChange={(e) => setForm({ ...form, registration: e.target.value })} /></div>
                 <div><Label>Problem Description</Label><Textarea value={form.problem_description ?? ""} onChange={(e) => setForm({ ...form, problem_description: e.target.value })} /></div>
                 <Button type="submit" className="w-full" disabled={saveBooking.isPending}>{editId ? "Update Booking" : "Add Booking"}</Button>
