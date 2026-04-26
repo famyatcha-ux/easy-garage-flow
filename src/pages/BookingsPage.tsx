@@ -72,15 +72,18 @@ export default function BookingsPage() {
 
   const saveBooking = useMutation({
     mutationFn: async () => {
+      const vehicle = `${make.trim()} ${model.trim()}`.trim();
+      if (!vehicle) throw new Error("Vehicle make is required");
+      const payload = { ...form, vehicle };
       if (editId) {
         const { error } = await supabase.from("bookings").update({
-          customer_name: form.customer_name, vehicle: form.vehicle,
-          contact_number: form.contact_number || null, registration: form.registration || null,
-          problem_description: form.problem_description || null, date: form.date,
+          customer_name: payload.customer_name, vehicle: payload.vehicle,
+          contact_number: payload.contact_number || null, registration: payload.registration || null,
+          problem_description: payload.problem_description || null, date: payload.date,
         }).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("bookings").insert(form);
+        const { error } = await supabase.from("bookings").insert(payload);
         if (error) throw error;
       }
     },
