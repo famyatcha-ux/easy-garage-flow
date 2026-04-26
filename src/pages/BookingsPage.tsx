@@ -102,20 +102,12 @@ export default function BookingsPage() {
     setOpen(true);
   };
 
-  const filters: { label: string; value: TimeRange }[] = [
-    { label: "Today", value: "today" }, { label: "This Week", value: "week" }, { label: "This Month", value: "month" },
-  ];
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Bookings</h2>
         <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            {filters.map((f) => (
-              <Button key={f.value} size="sm" variant={range === f.value ? "default" : "outline"} onClick={() => setRange(f.value)}>{f.label}</Button>
-            ))}
-          </div>
+          <MonthSelector value={monthIdx} onChange={setMonthIdx} />
           <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
             <DialogTrigger asChild>
               <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); setMake(""); setModel(""); }}><Plus className="mr-2 h-4 w-4" />New Booking</Button>
