@@ -99,10 +99,16 @@ export default function BookingsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["bookings"] }),
   });
 
-  const closeDialog = () => { setOpen(false); setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); };
+  const closeDialog = () => {
+    setOpen(false); setEditId(null);
+    setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
+    setMake(""); setModel("");
+  };
   const openEdit = (b: typeof bookings[0]) => {
     setEditId(b.id);
     setForm({ customer_name: b.customer_name, vehicle: b.vehicle, contact_number: b.contact_number ?? "", registration: b.registration ?? "", problem_description: b.problem_description ?? "", date: b.date });
+    const { make: mk, model: md } = splitVehicle(b.vehicle);
+    setMake(mk); setModel(md);
     setOpen(true);
   };
 
