@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { MonthSelector } from "@/components/MonthSelector";
+import { getMonthRange, getCurrentMonthIndex, getCurrentYear } from "@/lib/monthRange";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,17 +16,6 @@ import { generateInvoice } from "@/lib/generateInvoice";
 import { Plus, FileText, Pencil, Wrench, DollarSign, TrendingUp } from "lucide-react";
 
 const JOB_STATUSES = ["Pending", "In Progress", "Completed"] as const;
-type TimeRange = "week" | "month";
-
-function getRange(r: TimeRange) {
-  const now = new Date();
-  const end = now.toISOString().split("T")[0];
-  if (r === "week") {
-    const d = new Date(now); d.setDate(d.getDate() - d.getDay());
-    return { start: d.toISOString().split("T")[0], end };
-  }
-  return { start: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`, end };
-}
 
 const emptyForm = { booking_id: "", date: new Date().toISOString().split("T")[0], labour_charge: 0, parts_cost: 0, markup_percentage: 0 };
 
@@ -35,7 +26,7 @@ export default function JobsPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
-  const [range, setRange] = useState<TimeRange>("month");
+  const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
 
   const { data: bookings = [] } = useQuery({
     queryKey: ["bookings"],
@@ -47,7 +38,7 @@ export default function JobsPage() {
     queryFn: async () => { const { data, error } = await supabase.from("jobs").select("*, bookings(customer_name, vehicle, registration)").order("created_at", { ascending: false }); if (error) throw error; return data; },
   });
 
-  const { start, end } = useMemo(() => getRange(range), [range]);
+  const { start, end } = useMemo(() => getMonthRange(getCurrentYear(), monthIdx), [monthIdx]);
   const filtered = useMemo(() => jobs.filter((j) => j.date >= start && j.date <= end), [jobs, start, end]);
 
   const saveJob = useMutation({
@@ -88,16 +79,14 @@ export default function JobsPage() {
   const totalJobValue = filtered.reduce((s, j) => s + calc(j).totalValue, 0);
   const totalProfit = filtered.reduce((s, j) => s + calc(j).profit, 0);
 
-  const filters: { label: string; value: TimeRange }[] = [{ label: "This Week", value: "week" }, { label: "This Month", value: "month" }];
+  
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Jobs</h2>
         <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            {filters.map((f) => <Button key={f.value} size="sm" variant={range === f.value ? "default" : "outline"} onClick={() => setRange(f.value)}>{f.label}</Button>)}
-          </div>
+          <MonthSelector value={monthIdx} onChange={setMonthIdx} />
           <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
             <DialogTrigger asChild>
               <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); }}><Plus className="mr-2 h-4 w-4" />New Job</Button>

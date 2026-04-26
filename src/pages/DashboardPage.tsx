@@ -1,35 +1,20 @@
 import { useState, useMemo } from "react";
+import { MonthSelector } from "@/components/MonthSelector";
+import { getMonthRange, getCurrentMonthIndex, getCurrentYear } from "@/lib/monthRange";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, Wrench } from "lucide-react";
 
-type TimeRange = "today" | "week" | "month";
-
-function getDateRange(range: TimeRange): { start: string; end: string } {
-  const now = new Date();
-  const end = now.toISOString().split("T")[0];
-  let start: string;
-  if (range === "today") {
-    start = end;
-  } else if (range === "week") {
-    const d = new Date(now);
-    d.setDate(d.getDate() - d.getDay()); // Sunday start
-    start = d.toISOString().split("T")[0];
-  } else {
-    start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-  }
-  return { start, end };
-}
-
 function inRange(dateStr: string, start: string, end: string) {
   return dateStr >= start && dateStr <= end;
 }
 
+
 export default function DashboardPage() {
-  const [range, setRange] = useState<TimeRange>("month");
-  const { start, end } = useMemo(() => getDateRange(range), [range]);
+  const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
+  const { start, end } = useMemo(() => getMonthRange(getCurrentYear(), monthIdx), [monthIdx]);
 
   const { data: jobs = [] } = useQuery({
     queryKey: ["jobs"],
@@ -82,28 +67,11 @@ export default function DashboardPage() {
     { title: "Jobs", value: String(jobCount), icon: Wrench, color: "text-primary" },
   ];
 
-  const filters: { label: string; value: TimeRange }[] = [
-    { label: "Today", value: "today" },
-    { label: "This Week", value: "week" },
-    { label: "This Month", value: "month" },
-  ];
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Dashboard</h2>
-        <div className="flex gap-1">
-          {filters.map((f) => (
-            <Button
-              key={f.value}
-              size="sm"
-              variant={range === f.value ? "default" : "outline"}
-              onClick={() => setRange(f.value)}
-            >
-              {f.label}
-            </Button>
-          ))}
-        </div>
+        <MonthSelector value={monthIdx} onChange={setMonthIdx} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {cards.map((c) => (

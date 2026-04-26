@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { MonthSelector } from "@/components/MonthSelector";
+import { getMonthRange, getCurrentMonthIndex, getCurrentYear } from "@/lib/monthRange";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,7 +15,6 @@ import type { TablesInsert } from "@/integrations/supabase/types";
 import { Plus, Pencil } from "lucide-react";
 
 const STATUSES = ["Booked", "In Progress", "Completed", "Collected"] as const;
-type TimeRange = "today" | "week" | "month";
 
 // Common vehicle makes in South Africa
 const VEHICLE_MAKES = [
@@ -32,17 +33,6 @@ function splitVehicle(v: string): { make: string; model: string } {
   return { make: first ?? "", model: rest.join(" ") };
 }
 
-function getRange(r: TimeRange) {
-  const now = new Date();
-  const end = now.toISOString().split("T")[0];
-  if (r === "today") return { start: end, end };
-  if (r === "week") {
-    const d = new Date(now); d.setDate(d.getDate() - d.getDay());
-    return { start: d.toISOString().split("T")[0], end };
-  }
-  return { start: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`, end };
-}
-
 const emptyForm: TablesInsert<"bookings"> = {
   customer_name: "", vehicle: "", contact_number: "", registration: "", problem_description: "",
   date: new Date().toISOString().split("T")[0],
@@ -56,7 +46,7 @@ export default function BookingsPage() {
   const [form, setForm] = useState<TablesInsert<"bookings">>({ ...emptyForm });
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
-  const [range, setRange] = useState<TimeRange>("month");
+  const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
 
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ["bookings"],
@@ -67,7 +57,7 @@ export default function BookingsPage() {
     },
   });
 
-  const { start, end } = useMemo(() => getRange(range), [range]);
+  const { start, end } = useMemo(() => getMonthRange(getCurrentYear(), monthIdx), [monthIdx]);
   const filtered = useMemo(() => bookings.filter((b) => b.date >= start && b.date <= end), [bookings, start, end]);
 
   const saveBooking = useMutation({
@@ -112,20 +102,12 @@ export default function BookingsPage() {
     setOpen(true);
   };
 
-  const filters: { label: string; value: TimeRange }[] = [
-    { label: "Today", value: "today" }, { label: "This Week", value: "week" }, { label: "This Month", value: "month" },
-  ];
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Bookings</h2>
         <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            {filters.map((f) => (
-              <Button key={f.value} size="sm" variant={range === f.value ? "default" : "outline"} onClick={() => setRange(f.value)}>{f.label}</Button>
-            ))}
-          </div>
+          <MonthSelector value={monthIdx} onChange={setMonthIdx} />
           <Dialog open={open} onOpenChange={(v) => { if (!v) closeDialog(); else setOpen(true); }}>
             <DialogTrigger asChild>
               <Button onClick={() => { setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); setMake(""); setModel(""); }}><Plus className="mr-2 h-4 w-4" />New Booking</Button>
