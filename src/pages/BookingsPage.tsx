@@ -46,7 +46,7 @@ export default function BookingsPage() {
   const [form, setForm] = useState<TablesInsert<"bookings">>({ ...emptyForm });
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
-  const [range, setRange] = useState<TimeRange>("month");
+  const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
 
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ["bookings"],
