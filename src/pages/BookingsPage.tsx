@@ -203,7 +203,14 @@ export default function BookingsPage() {
                       <SelectContent>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell><Button variant="ghost" size="sm" onClick={() => openEdit(b)}><Pencil className="h-4 w-4" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(b)} title="Edit"><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={() => { setDepositBooking({ id: b.id, customer_name: b.customer_name, vehicle: b.vehicle }); setDepositAmount(""); setDepositMethod("Cash"); }} title="Create Job + Take Deposit">
+                        <Wrench className="h-4 w-4 mr-1" />Job + Deposit
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No bookings in this period</TableCell></TableRow>}
@@ -211,6 +218,39 @@ export default function BookingsPage() {
           </Table>
         </div>
       )}
+
+      <Dialog open={!!depositBooking} onOpenChange={(v) => { if (!v) setDepositBooking(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Create Job + Take Deposit</DialogTitle></DialogHeader>
+          {depositBooking && (
+            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); createJobWithDeposit.mutate(); }}>
+              <div className="text-sm text-muted-foreground">
+                <div><span className="font-medium text-foreground">Customer:</span> {depositBooking.customer_name}</div>
+                <div><span className="font-medium text-foreground">Vehicle:</span> {depositBooking.vehicle}</div>
+              </div>
+              <div>
+                <Label>Deposit Amount *</Label>
+                <Input type="number" step="0.01" min="0" required value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} placeholder="0.00" autoFocus />
+              </div>
+              <div>
+                <Label>Payment Method</Label>
+                <Select value={depositMethod} onValueChange={(v) => setDepositMethod(v as "Cash" | "Card" | "EFT")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="Card">Card</SelectItem>
+                    <SelectItem value="EFT">EFT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-xs text-muted-foreground">Type: <span className="font-medium">Deposit</span> · Booking will be set to <span className="font-medium">In Progress</span></div>
+              <Button type="submit" className="w-full" disabled={createJobWithDeposit.isPending}>
+                {createJobWithDeposit.isPending ? "Saving..." : "Create Job & Save Deposit"}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
