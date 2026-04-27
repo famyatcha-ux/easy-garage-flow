@@ -92,6 +92,41 @@ export default function BookingsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["bookings"] }),
   });
 
+  const createJobWithDeposit = useMutation({
+    mutationFn: async () => {
+      if (!depositBooking) throw new Error("No booking selected");
+      const amount = Number(depositAmount);
+      if (!amount || amount <= 0) throw new Error("Enter a valid deposit amount");
+
+      const { data: job, error: jobErr } = await supabase
+        .from("jobs")
+        .insert({ booking_id: depositBooking.id, date: new Date().toISOString().split("T")[0], status: "Pending" })
+        .select()
+        .single();
+      if (jobErr) throw jobErr;
+
+      const { error: payErr } = await supabase.from("payments").insert({
+        job_id: job.id,
+        amount_paid: amount,
+        payment_type: "Deposit",
+        payment_method: depositMethod,
+        date: new Date().toISOString().split("T")[0],
+      });
+      if (payErr) throw payErr;
+
+      const { error: bkErr } = await supabase.from("bookings").update({ status: "In Progress" }).eq("id", depositBooking.id);
+      if (bkErr) throw bkErr;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bookings"] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      toast({ title: "Job created & deposit recorded" });
+      setDepositBooking(null); setDepositAmount(""); setDepositMethod("Cash");
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   const closeDialog = () => {
     setOpen(false); setEditId(null);
     setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
