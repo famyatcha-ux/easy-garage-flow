@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/contexts/RoleContext";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 
 const emptyForm = { job_id: "", date: new Date().toISOString().split("T")[0], amount_paid: 0, payment_method: "Cash", payment_type: "Final" };
@@ -92,11 +93,32 @@ export default function PaymentsPage() {
                     <SelectContent>{jobs.map((j) => { const b = j.bookings as { customer_name: string; vehicle: string } | null; return <SelectItem key={j.id} value={j.id}>{b?.customer_name} — {b?.vehicle}</SelectItem>; })}</SelectContent>
                   </Select>
                 </div>
-                {selectedJob && <div className="bg-muted p-3 rounded text-sm space-y-1">
-                  <p>Job Total: <strong>{fmt(selectedJobTotal)}</strong></p>
-                  <p>Already Paid: <strong>{fmt(selectedJobPaid)}</strong></p>
-                  <p>Outstanding: <strong>{fmt(selectedJobTotal - selectedJobPaid)}</strong></p>
-                </div>}
+                {selectedJob && (() => {
+                  const priorPaid = selectedJobPaid - (editId ? Number(form.amount_paid === undefined ? 0 : 0) : 0);
+                  // Sum of all payments excluding the one being edited
+                  const otherPaid = editId
+                    ? payments.filter((p) => p.job_id === form.job_id && p.id !== editId).reduce((s, p) => s + Number(p.amount_paid), 0)
+                    : selectedJobPaid;
+                  const projectedPaid = otherPaid + Number(form.amount_paid || 0);
+                  const exceeds = selectedJobTotal > 0 && projectedPaid > selectedJobTotal + 0.01;
+                  const noTotalYet = selectedJobTotal <= 0;
+                  return (
+                    <div className="bg-muted p-3 rounded text-sm space-y-1">
+                      <p>Job Total: <strong>{noTotalYet ? "Not set yet" : fmt(selectedJobTotal)}</strong></p>
+                      <p>Already Paid: <strong>{fmt(otherPaid)}</strong></p>
+                      {!noTotalYet && <p>Outstanding after this payment: <strong>{fmt(selectedJobTotal - projectedPaid)}</strong></p>}
+                      {noTotalYet && (
+                        <p className="text-muted-foreground italic">Recording as deposit — final price can be set on the job later.</p>
+                      )}
+                      {exceeds && (
+                        <Alert variant="destructive" className="mt-2">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>Payments exceed job total. Please review.</AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
                 <div><Label>Amount</Label><Input type="number" min={0} step={0.01} value={form.amount_paid} onChange={(e) => setForm({ ...form, amount_paid: +e.target.value })} /></div>
                 <div><Label>Method</Label>
