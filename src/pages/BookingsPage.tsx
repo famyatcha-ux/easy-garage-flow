@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { TablesInsert } from "@/integrations/supabase/types";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Wrench } from "lucide-react";
 
 const STATUSES = ["Booked", "In Progress", "Completed", "Collected"] as const;
 
