@@ -13,7 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/contexts/RoleContext";
 import { generateInvoice, type InvoiceLineItem } from "@/lib/generateInvoice";
-import { Plus, FileText, Pencil, Wrench, DollarSign, TrendingUp, Trash2, Eye, Printer, Download } from "lucide-react";
+import { Plus, FileText, Pencil, Wrench, DollarSign, TrendingUp, Trash2, Eye, Printer, Download, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const JOB_STATUSES = ["Pending", "In Progress", "Completed"] as const;
 const BUSINESS_NAME = "Workshop";
@@ -216,6 +217,30 @@ export default function JobsPage() {
                     <span>Total Labour: <strong>{fmt(lineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0))}</strong></span>
                   </div>
                 </div>
+
+                {/* Payment-aware warning when editing */}
+                {editId && (() => {
+                  const labour = lineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0);
+                  const partsSell = (form.parts_cost || 0) * (1 + (form.markup_percentage || 0) / 100);
+                  const total = labour + partsSell;
+                  const paid = paidByJob[editId] || 0;
+                  if (paid > 0) {
+                    return (
+                      <div className="bg-muted/50 p-3 rounded text-sm space-y-1 border">
+                        <p>Already Paid (deposits/payments): <strong>{fmt(paid)}</strong></p>
+                        <p>New Job Total: <strong>{fmt(total)}</strong></p>
+                        <p>New Balance Due: <strong className={total - paid < 0 ? "text-destructive" : ""}>{fmt(total - paid)}</strong></p>
+                        {total > 0 && paid > total + 0.01 && (
+                          <Alert variant="destructive" className="mt-2">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertDescription>Payments exceed job total. Please review.</AlertDescription>
+                          </Alert>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
 
                 {isAdmin && <>
                   <div className="grid grid-cols-2 gap-3">
