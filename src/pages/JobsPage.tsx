@@ -17,7 +17,12 @@ import { Plus, FileText, Pencil, Wrench, DollarSign, TrendingUp, Trash2, Eye, Pr
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const JOB_STATUSES = ["Pending", "In Progress", "Completed"] as const;
-const BUSINESS_NAME = "Workshop";
+const BUSINESS = {
+  name: "FS Motors Mechanical Services",
+  address: "54 Sage Road, Durban",
+  phone: "071 528 9328",
+  tagline: "Driving Dreams, Delivering Excellence.",
+};
 
 type LineItemDraft = { id?: string; description: string; amount: number };
 
@@ -142,7 +147,10 @@ export default function JobsPage() {
     const items: InvoiceLineItem[] = (lineItemsByJob[job.id] || []).map((li) => ({ description: li.description, amount: Number(li.amount) }));
     const c = calc(job);
     return {
-      businessName: BUSINESS_NAME,
+      businessName: BUSINESS.name,
+      businessAddress: BUSINESS.address,
+      businessPhone: BUSINESS.phone,
+      businessTagline: BUSINESS.tagline,
       invoiceNumber: job.invoice_number ?? job.id.slice(0, 8).toUpperCase(),
       date: job.date,
       customerName: booking?.customer_name ?? "Unknown",
@@ -340,6 +348,9 @@ export default function JobsPage() {
                 <div className="flex justify-between items-start border-b pb-3">
                   <div>
                     <div className="text-xl font-bold">{inv.businessName}</div>
+                    {inv.businessAddress && <div className="text-xs text-muted-foreground">{inv.businessAddress}</div>}
+                    {inv.businessPhone && <div className="text-xs text-muted-foreground">Tel: {inv.businessPhone}</div>}
+                    {inv.businessTagline && <div className="text-xs italic text-muted-foreground mt-1">{inv.businessTagline}</div>}
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold text-muted-foreground">INVOICE</div>
