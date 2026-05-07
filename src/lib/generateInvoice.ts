@@ -8,6 +8,9 @@ export interface InvoiceLineItem {
 
 export interface InvoiceData {
   businessName?: string;
+  businessAddress?: string;
+  businessPhone?: string;
+  businessTagline?: string;
   invoiceNumber: string | number;
   date: string;
   customerName: string;
@@ -29,9 +32,22 @@ export function generateInvoice(data: InvoiceData) {
   const balanceDue = totalValue - data.amountPaid;
 
   // Header
-  doc.setFontSize(22);
+  doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
   doc.text(businessName, 20, 22);
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(90);
+  let hy = 28;
+  if (data.businessAddress) { doc.text(data.businessAddress, 20, hy); hy += 5; }
+  if (data.businessPhone) { doc.text(`Tel: ${data.businessPhone}`, 20, hy); hy += 5; }
+  if (data.businessTagline) {
+    doc.setFont("helvetica", "italic");
+    doc.text(data.businessTagline, 20, hy);
+    doc.setFont("helvetica", "normal");
+  }
+  doc.setTextColor(0);
 
   doc.setFontSize(18);
   doc.setTextColor(100);
@@ -39,20 +55,19 @@ export function generateInvoice(data: InvoiceData) {
   doc.setTextColor(0);
 
   doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
   doc.text(`Invoice #: ${String(data.invoiceNumber)}`, 190, 30, { align: "right" });
   doc.text(`Date: ${data.date}`, 190, 36, { align: "right" });
 
   doc.setDrawColor(200);
-  doc.line(20, 42, 190, 42);
+  doc.line(20, 48, 190, 48);
 
   // Customer details
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("Bill To", 20, 50);
+  doc.text("Bill To", 20, 56);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  let y = 56;
+  let y = 62;
   doc.text(data.customerName, 20, y);
   if (data.contactNumber) { y += 6; doc.text(`Contact: ${data.contactNumber}`, 20, y); }
   y += 6; doc.text(`Vehicle: ${data.vehicle}`, 20, y);
@@ -68,12 +83,11 @@ export function generateInvoice(data: InvoiceData) {
     head: [["Work Performed", "Amount"]],
     body: workRows,
     theme: "grid",
-    headStyles: { fillColor: [60, 60, 60] },
+    headStyles: { fillColor: [37, 99, 235] },
     styles: { fontSize: 10 },
     columnStyles: { 1: { halign: "right", cellWidth: 40 } },
   });
 
-  // Charges table
   // @ts-expect-error - autoTable adds lastAutoTable
   const afterWork = doc.lastAutoTable.finalY + 6;
 
@@ -92,7 +106,6 @@ export function generateInvoice(data: InvoiceData) {
   // @ts-expect-error - autoTable adds lastAutoTable
   const afterCharges = doc.lastAutoTable.finalY + 4;
 
-  // Totals box
   autoTable(doc, {
     startY: afterCharges,
     body: [
@@ -120,7 +133,10 @@ export function generateInvoice(data: InvoiceData) {
   const pageHeight = doc.internal.pageSize.height;
   doc.setFontSize(8);
   doc.setTextColor(150);
-  doc.text("Thank you for your business.", 105, pageHeight - 15, { align: "center" });
+  if (data.businessTagline) {
+    doc.text(data.businessTagline, 105, pageHeight - 20, { align: "center" });
+  }
+  doc.text("Thank you for your business.", 105, pageHeight - 12, { align: "center" });
 
   return doc;
 }
