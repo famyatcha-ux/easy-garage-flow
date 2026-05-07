@@ -54,15 +54,21 @@ export default function DashboardPage() {
     0
   );
   const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
-  const totalPaid = filteredPayments.reduce((sum, p) => sum + p.amount_paid, 0);
+  const cashReceived = filteredPayments.reduce((sum, p) => sum + p.amount_paid, 0);
+  const totalPaid = cashReceived;
   const outstanding = totalIncome - totalPaid;
-  const netProfit = totalPaid - totalExpenses;
+  const jobProfitTotal = filteredJobs.reduce(
+    (sum, j) => sum + (j.labour_charge + j.parts_cost * (1 + j.markup_percentage / 100) - j.parts_cost),
+    0
+  );
+  const netProfit = jobProfitTotal - totalExpenses;
   const jobCount = filteredJobs.length;
 
   const cards = [
     { title: "Total Income", value: fmt(totalIncome), icon: DollarSign, color: "text-primary" },
     { title: "Total Expenses", value: fmt(totalExpenses), icon: TrendingDown, color: "text-destructive" },
-    { title: "Net Profit", value: fmt(netProfit), icon: TrendingUp, color: netProfit >= 0 ? "text-primary" : "text-destructive" },
+    { title: "Net Profit (Job Basis)", value: fmt(netProfit), icon: TrendingUp, color: netProfit >= 0 ? "text-primary" : "text-destructive" },
+    { title: "Cash Received", value: fmt(cashReceived), icon: DollarSign, color: "text-muted-foreground" },
     { title: "Outstanding", value: fmt(outstanding), icon: AlertCircle, color: "text-muted-foreground" },
     { title: "Jobs", value: String(jobCount), icon: Wrench, color: "text-primary" },
   ];
