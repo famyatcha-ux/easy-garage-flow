@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/contexts/RoleContext";
 import { generateInvoice, type InvoiceLineItem } from "@/lib/generateInvoice";
-import { Plus, FileText, Pencil, Wrench, DollarSign, TrendingUp, Trash2, Eye, Printer, Download, AlertTriangle } from "lucide-react";
+import { Plus, FileText, Pencil, Wrench, DollarSign, TrendingUp, Trash2, Eye, Printer, Download, AlertTriangle, MessageCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const JOB_STATUSES = ["Pending", "In Progress", "Completed"] as const;
@@ -176,6 +176,35 @@ export default function JobsPage() {
     window.open(url.toString(), "_blank");
   };
 
+  const handleWhatsApp = (job: any) => {
+    const inv = buildInvoiceData(job);
+    const totalLabour = inv.lineItems.reduce((s, li) => s + li.amount, 0);
+    const totalValue = totalLabour + inv.partsSellingPrice;
+    const balance = totalValue - inv.amountPaid;
+    const raw = (inv.contactNumber || "").replace(/\D/g, "");
+    const number = raw.startsWith("0") ? "27" + raw.slice(1) : raw;
+    const message =
+`*FS Motors Mechanical Services*
+*Invoice: ${inv.invoiceNumber}*
+
+Dear ${inv.customerName},
+Thank you for your visit!
+
+Vehicle: ${inv.vehicle}${inv.registration ? ` (${inv.registration})` : ""}
+
+*Total: R${totalValue.toFixed(2)}*
+Amount Paid: R${inv.amountPaid.toFixed(2)}
+*Balance Due: R${balance.toFixed(2)}*
+
+Contact us: 071 528 9328
+Driving Dreams, Delivering Excellence.`;
+    if (!number) {
+      toast({ title: "No contact number", description: "Customer has no contact number on file.", variant: "destructive" });
+      return;
+    }
+    window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, "_blank");
+  };
+
   const totalJobValue = filtered.reduce((s, j) => s + calc(j).totalValue, 0);
   const totalProfit = filtered.reduce((s, j) => s + calc(j).profit, 0);
 
@@ -324,6 +353,7 @@ export default function JobsPage() {
                       <Button variant="ghost" size="sm" onClick={() => setPreviewJobId(j.id)} title="View Invoice"><Eye className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDownload(j)} title="Download Invoice"><Download className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="sm" onClick={() => handlePrint(j)} title="Print Invoice"><Printer className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleWhatsApp(j)} title="Send via WhatsApp"><MessageCircle className="h-4 w-4 text-green-600" /></Button>
                     </TableCell>
                   </TableRow>
                 );
@@ -388,6 +418,7 @@ export default function JobsPage() {
                   </div>
                 </div>
                 <div className="flex gap-2 justify-end pt-3 border-t">
+                  <Button variant="outline" onClick={() => handleWhatsApp(previewJob)} className="text-green-700 border-green-600 hover:bg-green-50"><MessageCircle className="h-4 w-4 mr-2" />WhatsApp</Button>
                   <Button variant="outline" onClick={() => handlePrint(previewJob)}><Printer className="h-4 w-4 mr-2" />Print</Button>
                   <Button onClick={() => handleDownload(previewJob)}><Download className="h-4 w-4 mr-2" />Download PDF</Button>
                 </div>
