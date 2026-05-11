@@ -193,6 +193,7 @@ export default function BookingsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Ref</TableHead>
                 <TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Contact</TableHead>
                 <TableHead>Vehicle</TableHead><TableHead>Reg</TableHead><TableHead>Problem</TableHead>
                 <TableHead>Status</TableHead><TableHead>Actions</TableHead>
@@ -201,6 +202,7 @@ export default function BookingsPage() {
             <TableBody>
               {filtered.map((b) => (
                 <TableRow key={b.id}>
+                  <TableCell className="font-mono whitespace-nowrap">{b.booking_ref ?? "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">{b.date}</TableCell>
                   <TableCell>{b.customer_name}</TableCell><TableCell>{b.contact_number}</TableCell>
                   <TableCell>{b.vehicle}</TableCell><TableCell>{b.registration}</TableCell>
