@@ -53,6 +53,7 @@ export default function BookingsPage() {
   const [depositBooking, setDepositBooking] = useState<{ id: string; customer_name: string; vehicle: string } | null>(null);
   const [depositAmount, setDepositAmount] = useState("");
   const [depositMethod, setDepositMethod] = useState<"Cash" | "Card" | "EFT">("Cash");
+  const [deleteBooking, setDeleteBooking] = useState<{ id: string; customer_name: string } | null>(null);
 
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ["bookings"],
