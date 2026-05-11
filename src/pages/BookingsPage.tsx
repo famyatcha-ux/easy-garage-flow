@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { TablesInsert } from "@/integrations/supabase/types";
-import { Plus, Pencil, Wrench } from "lucide-react";
+import { Plus, Pencil, Wrench, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const STATUSES = ["Booked", "In Progress", "Completed", "Collected"] as const;
 
@@ -52,6 +53,7 @@ export default function BookingsPage() {
   const [depositBooking, setDepositBooking] = useState<{ id: string; customer_name: string; vehicle: string } | null>(null);
   const [depositAmount, setDepositAmount] = useState("");
   const [depositMethod, setDepositMethod] = useState<"Cash" | "Card" | "EFT">("Cash");
+  const [deleteBooking, setDeleteBooking] = useState<{ id: string; customer_name: string } | null>(null);
 
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ["bookings"],
@@ -144,6 +146,32 @@ export default function BookingsPage() {
       qc.invalidateQueries({ queryKey: ["payments"] });
       toast({ title: "Job created & deposit recorded" });
       setDepositBooking(null); setDepositAmount(""); setDepositMethod("Cash");
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteBookingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data: jobs, error: jErr } = await supabase.from("jobs").select("id").eq("booking_id", id);
+      if (jErr) throw jErr;
+      const jobIds = (jobs ?? []).map((j) => j.id);
+      if (jobIds.length) {
+        const { error: pErr } = await supabase.from("payments").delete().in("job_id", jobIds);
+        if (pErr) throw pErr;
+        const { error: liErr } = await supabase.from("job_line_items").delete().in("job_id", jobIds);
+        if (liErr) throw liErr;
+        const { error: jdErr } = await supabase.from("jobs").delete().in("id", jobIds);
+        if (jdErr) throw jdErr;
+      }
+      const { error } = await supabase.from("bookings").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bookings"] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      setDeleteBooking(null);
+      toast({ title: "Booking deleted" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -247,6 +275,9 @@ export default function BookingsPage() {
                       <Button variant="outline" size="sm" onClick={() => { setDepositBooking({ id: b.id, customer_name: b.customer_name, vehicle: b.vehicle }); setDepositAmount(""); setDepositMethod("Cash"); }} title="Create Job + Take Deposit">
                         <Wrench className="h-4 w-4 mr-1" />Job + Deposit
                       </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteBooking({ id: b.id, customer_name: b.customer_name })} title="Delete" className="text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -289,6 +320,27 @@ export default function BookingsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteBooking} onOpenChange={(v) => { if (!v) setDeleteBooking(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this booking?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the booking for <span className="font-medium">{deleteBooking?.customer_name}</span> along with any linked jobs and payments. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); if (deleteBooking) deleteBookingMutation.mutate(deleteBooking.id); }}
+              disabled={deleteBookingMutation.isPending}
+            >
+              {deleteBookingMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

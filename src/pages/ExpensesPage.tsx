@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const CATEGORIES = ["Parts Purchase", "Rent", "Salaries", "Fuel", "Other"] as const;
 const CATEGORIES_END = "" as const;
@@ -24,6 +25,7 @@ export default function ExpensesPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
 
   const { data: expenses = [], isLoading } = useQuery({
@@ -42,6 +44,15 @@ export default function ExpensesPage() {
       else { const { error } = await supabase.from("expenses").insert(payload); if (error) throw error; }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["expenses"] }); closeDialog(); toast({ title: editId ? "Expense updated" : "Expense added" }); },
+    onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteExpense = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("expenses").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["expenses"] }); setDeleteId(null); toast({ title: "Expense deleted" }); },
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -93,7 +104,12 @@ export default function ExpensesPage() {
                   <TableCell>{ex.category}</TableCell>
                   <TableCell className="text-right font-medium">{fmt(ex.amount)}</TableCell>
                   <TableCell className="max-w-[300px] truncate">{ex.notes}</TableCell>
-                  <TableCell><Button variant="ghost" size="sm" onClick={() => openEdit(ex)}><Pencil className="h-4 w-4" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(ex)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(ex.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No expenses in this period</TableCell></TableRow>}
@@ -101,6 +117,25 @@ export default function ExpensesPage() {
           </Table>
         </div>
       )}
+
+      <AlertDialog open={!!deleteId} onOpenChange={(v) => { if (!v) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); if (deleteId) deleteExpense.mutate(deleteId); }}
+              disabled={deleteExpense.isPending}
+            >
+              {deleteExpense.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
