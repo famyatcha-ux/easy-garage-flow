@@ -104,7 +104,12 @@ export default function ExpensesPage() {
                   <TableCell>{ex.category}</TableCell>
                   <TableCell className="text-right font-medium">{fmt(ex.amount)}</TableCell>
                   <TableCell className="max-w-[300px] truncate">{ex.notes}</TableCell>
-                  <TableCell><Button variant="ghost" size="sm" onClick={() => openEdit(ex)}><Pencil className="h-4 w-4" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(ex)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(ex.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No expenses in this period</TableCell></TableRow>}
