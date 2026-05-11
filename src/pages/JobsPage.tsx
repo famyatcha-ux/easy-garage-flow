@@ -88,6 +88,13 @@ export default function JobsPage() {
         const { error } = await supabase.from("jobs").update(d as any).eq("id", editId);
         if (error) throw error;
       } else {
+        // Assign next invoice_ref (FS-0001 ...)
+        const { data: counter, error: cErr } = await supabase.from("ref_counters").select("value").eq("name", "job").maybeSingle();
+        if (cErr) throw cErr;
+        const nextVal = (counter?.value ?? 0) + 1;
+        const { error: uErr } = await supabase.from("ref_counters").update({ value: nextVal, updated_at: new Date().toISOString() }).eq("name", "job");
+        if (uErr) throw uErr;
+        d.invoice_ref = `FS-${String(nextVal).padStart(4, "0")}`;
         const { data: inserted, error } = await supabase.from("jobs").insert(d as any).select("id").single();
         if (error) throw error;
         jobId = inserted.id;
