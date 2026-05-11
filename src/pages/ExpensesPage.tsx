@@ -47,6 +47,15 @@ export default function ExpensesPage() {
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const deleteExpense = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("expenses").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["expenses"] }); setDeleteId(null); toast({ title: "Expense deleted" }); },
+    onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   const fmt = (n: number) => `R ${n.toFixed(2)}`;
   const closeDialog = () => { setOpen(false); setEditId(null); setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] }); };
   const openEdit = (ex: typeof expenses[0]) => { setEditId(ex.id); setForm({ date: ex.date, category: ex.category, amount: ex.amount, notes: ex.notes ?? "" }); setOpen(true); };
