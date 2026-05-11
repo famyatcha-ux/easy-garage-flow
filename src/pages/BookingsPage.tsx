@@ -200,7 +200,22 @@ export default function BookingsPage() {
           </Dialog>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground mb-3">{filtered.length} booking{filtered.length !== 1 ? "s" : ""} found</p>
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <Input
+          placeholder="Search customer, vehicle, or registration..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-xs"
+        />
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All statuses</SelectItem>
+            {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <p className="text-sm text-muted-foreground ml-auto">{filtered.length} booking{filtered.length !== 1 ? "s" : ""} found</p>
+      </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
         <div className="border rounded-lg overflow-auto">
           <Table>
