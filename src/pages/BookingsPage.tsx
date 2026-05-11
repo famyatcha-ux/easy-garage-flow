@@ -63,7 +63,18 @@ export default function BookingsPage() {
   });
 
   const { start, end } = useMemo(() => getMonthRange(getCurrentYear(), monthIdx), [monthIdx]);
-  const filtered = useMemo(() => bookings.filter((b) => b.date >= start && b.date <= end), [bookings, start, end]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return bookings.filter((b) => {
+      if (b.date < start || b.date > end) return false;
+      if (statusFilter !== "All" && b.status !== statusFilter) return false;
+      if (q) {
+        const hay = `${b.customer_name ?? ""} ${b.vehicle ?? ""} ${b.registration ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [bookings, start, end, search, statusFilter]);
 
   const saveBooking = useMutation({
     mutationFn: async () => {
