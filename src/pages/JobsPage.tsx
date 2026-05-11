@@ -172,7 +172,7 @@ export default function JobsPage() {
 
   const handleDownload = (job: any) => {
     const booking = job.bookings as { customer_name: string } | null;
-    generateInvoice(buildInvoiceData(job)).save(`invoice-${job.invoice_number ?? job.date}-${booking?.customer_name ?? "job"}.pdf`);
+    generateInvoice(buildInvoiceData(job)).save(`invoice-${job.invoice_ref ?? job.invoice_number ?? job.date}-${booking?.customer_name ?? "job"}.pdf`);
     toast({ title: "Invoice downloaded" });
   };
 
