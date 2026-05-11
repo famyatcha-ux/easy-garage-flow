@@ -47,6 +47,8 @@ export default function BookingsPage() {
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
   const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("All");
   const [depositBooking, setDepositBooking] = useState<{ id: string; customer_name: string; vehicle: string } | null>(null);
   const [depositAmount, setDepositAmount] = useState("");
   const [depositMethod, setDepositMethod] = useState<"Cash" | "Card" | "EFT">("Cash");
@@ -61,7 +63,18 @@ export default function BookingsPage() {
   });
 
   const { start, end } = useMemo(() => getMonthRange(getCurrentYear(), monthIdx), [monthIdx]);
-  const filtered = useMemo(() => bookings.filter((b) => b.date >= start && b.date <= end), [bookings, start, end]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return bookings.filter((b) => {
+      if (b.date < start || b.date > end) return false;
+      if (statusFilter !== "All" && b.status !== statusFilter) return false;
+      if (q) {
+        const hay = `${b.customer_name ?? ""} ${b.vehicle ?? ""} ${b.registration ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [bookings, start, end, search, statusFilter]);
 
   const saveBooking = useMutation({
     mutationFn: async () => {
@@ -187,7 +200,22 @@ export default function BookingsPage() {
           </Dialog>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground mb-3">{filtered.length} booking{filtered.length !== 1 ? "s" : ""} found</p>
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <Input
+          placeholder="Search customer, vehicle, or registration..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-xs"
+        />
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All statuses</SelectItem>
+            {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <p className="text-sm text-muted-foreground ml-auto">{filtered.length} booking{filtered.length !== 1 ? "s" : ""} found</p>
+      </div>
       {isLoading ? <p className="text-muted-foreground">Loading...</p> : (
         <div className="border rounded-lg overflow-auto">
           <Table>
