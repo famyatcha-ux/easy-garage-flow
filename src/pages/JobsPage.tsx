@@ -88,6 +88,13 @@ export default function JobsPage() {
         const { error } = await supabase.from("jobs").update(d as any).eq("id", editId);
         if (error) throw error;
       } else {
+        // Assign next invoice_ref (FS-0001 ...)
+        const { data: counter, error: cErr } = await supabase.from("ref_counters").select("value").eq("name", "job").maybeSingle();
+        if (cErr) throw cErr;
+        const nextVal = (counter?.value ?? 0) + 1;
+        const { error: uErr } = await supabase.from("ref_counters").update({ value: nextVal, updated_at: new Date().toISOString() }).eq("name", "job");
+        if (uErr) throw uErr;
+        d.invoice_ref = `FS-${String(nextVal).padStart(4, "0")}`;
         const { data: inserted, error } = await supabase.from("jobs").insert(d as any).select("id").single();
         if (error) throw error;
         jobId = inserted.id;
@@ -151,7 +158,7 @@ export default function JobsPage() {
       businessAddress: BUSINESS.address,
       businessPhone: BUSINESS.phone,
       businessTagline: BUSINESS.tagline,
-      invoiceNumber: job.invoice_number ?? job.id.slice(0, 8).toUpperCase(),
+      invoiceNumber: job.invoice_ref ?? job.invoice_number ?? job.id.slice(0, 8).toUpperCase(),
       date: job.date,
       customerName: booking?.customer_name ?? "Unknown",
       contactNumber: booking?.contact_number ?? null,
@@ -165,7 +172,7 @@ export default function JobsPage() {
 
   const handleDownload = (job: any) => {
     const booking = job.bookings as { customer_name: string } | null;
-    generateInvoice(buildInvoiceData(job)).save(`invoice-${job.invoice_number ?? job.date}-${booking?.customer_name ?? "job"}.pdf`);
+    generateInvoice(buildInvoiceData(job)).save(`invoice-${job.invoice_ref ?? job.invoice_number ?? job.date}-${booking?.customer_name ?? "job"}.pdf`);
     toast({ title: "Invoice downloaded" });
   };
 
@@ -333,7 +340,7 @@ Driving Dreams, Delivering Excellence.`;
                 const booking = (j as any).bookings as { customer_name: string; vehicle: string; registration: string | null } | null;
                 return (
                   <TableRow key={j.id}>
-                    <TableCell className="font-mono text-xs">{(j as any).invoice_number ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{(j as any).invoice_ref ?? (j as any).invoice_number ?? "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{j.date}</TableCell>
                     <TableCell>{booking?.customer_name}</TableCell><TableCell>{booking?.vehicle}</TableCell>
                     <TableCell>
