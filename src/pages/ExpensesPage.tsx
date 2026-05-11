@@ -25,6 +25,7 @@ export default function ExpensesPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
 
   const { data: expenses = [], isLoading } = useQuery({
