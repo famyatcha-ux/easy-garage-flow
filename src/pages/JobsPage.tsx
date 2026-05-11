@@ -340,7 +340,7 @@ Driving Dreams, Delivering Excellence.`;
                 const booking = (j as any).bookings as { customer_name: string; vehicle: string; registration: string | null } | null;
                 return (
                   <TableRow key={j.id}>
-                    <TableCell className="font-mono text-xs">{(j as any).invoice_number ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{(j as any).invoice_ref ?? (j as any).invoice_number ?? "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{j.date}</TableCell>
                     <TableCell>{booking?.customer_name}</TableCell><TableCell>{booking?.vehicle}</TableCell>
                     <TableCell>
