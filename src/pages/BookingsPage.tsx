@@ -275,6 +275,9 @@ export default function BookingsPage() {
                       <Button variant="outline" size="sm" onClick={() => { setDepositBooking({ id: b.id, customer_name: b.customer_name, vehicle: b.vehicle }); setDepositAmount(""); setDepositMethod("Cash"); }} title="Create Job + Take Deposit">
                         <Wrench className="h-4 w-4 mr-1" />Job + Deposit
                       </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteBooking({ id: b.id, customer_name: b.customer_name })} title="Delete" className="text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
