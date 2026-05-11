@@ -76,7 +76,15 @@ export default function BookingsPage() {
         }).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("bookings").insert(payload);
+        const { data: counter, error: cErr } = await supabase
+          .from("ref_counters").select("value").eq("name", "booking").single();
+        if (cErr) throw cErr;
+        const next = (counter?.value ?? 0) + 1;
+        const { error: uErr } = await supabase
+          .from("ref_counters").update({ value: next }).eq("name", "booking");
+        if (uErr) throw uErr;
+        const booking_ref = `BK-${String(next).padStart(4, "0")}`;
+        const { error } = await supabase.from("bookings").insert({ ...payload, booking_ref });
         if (error) throw error;
       }
     },
