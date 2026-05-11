@@ -47,6 +47,8 @@ export default function BookingsPage() {
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
   const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("All");
   const [depositBooking, setDepositBooking] = useState<{ id: string; customer_name: string; vehicle: string } | null>(null);
   const [depositAmount, setDepositAmount] = useState("");
   const [depositMethod, setDepositMethod] = useState<"Cash" | "Card" | "EFT">("Cash");
