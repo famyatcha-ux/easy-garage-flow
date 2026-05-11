@@ -158,7 +158,7 @@ export default function JobsPage() {
       businessAddress: BUSINESS.address,
       businessPhone: BUSINESS.phone,
       businessTagline: BUSINESS.tagline,
-      invoiceNumber: job.invoice_number ?? job.id.slice(0, 8).toUpperCase(),
+      invoiceNumber: job.invoice_ref ?? job.invoice_number ?? job.id.slice(0, 8).toUpperCase(),
       date: job.date,
       customerName: booking?.customer_name ?? "Unknown",
       contactNumber: booking?.contact_number ?? null,
