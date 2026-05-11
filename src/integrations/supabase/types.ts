@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       bookings: {
         Row: {
+          booking_ref: string | null
           contact_number: string | null
           created_at: string
           customer_name: string
@@ -28,6 +29,7 @@ export type Database = {
           vehicle: string
         }
         Insert: {
+          booking_ref?: string | null
           contact_number?: string | null
           created_at?: string
           customer_name: string
@@ -40,6 +42,7 @@ export type Database = {
           vehicle: string
         }
         Update: {
+          booking_ref?: string | null
           contact_number?: string | null
           created_at?: string
           customer_name?: string
@@ -208,6 +211,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ref_counters: {
+        Row: {
+          name: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          name: string
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          name?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
       }
       supplier_transactions: {
         Row: {
