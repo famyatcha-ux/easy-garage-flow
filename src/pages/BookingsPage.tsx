@@ -150,6 +150,32 @@ export default function BookingsPage() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const deleteBookingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data: jobs, error: jErr } = await supabase.from("jobs").select("id").eq("booking_id", id);
+      if (jErr) throw jErr;
+      const jobIds = (jobs ?? []).map((j) => j.id);
+      if (jobIds.length) {
+        const { error: pErr } = await supabase.from("payments").delete().in("job_id", jobIds);
+        if (pErr) throw pErr;
+        const { error: liErr } = await supabase.from("job_line_items").delete().in("job_id", jobIds);
+        if (liErr) throw liErr;
+        const { error: jdErr } = await supabase.from("jobs").delete().in("id", jobIds);
+        if (jdErr) throw jdErr;
+      }
+      const { error } = await supabase.from("bookings").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bookings"] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      setDeleteBooking(null);
+      toast({ title: "Booking deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   const closeDialog = () => {
     setOpen(false); setEditId(null);
     setForm({ ...emptyForm, date: new Date().toISOString().split("T")[0] });
