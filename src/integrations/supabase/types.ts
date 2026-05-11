@@ -131,6 +131,7 @@ export type Database = {
           date: string
           id: string
           invoice_number: number | null
+          invoice_ref: string | null
           labour_charge: number
           markup_percentage: number
           parts_cost: number
@@ -143,6 +144,7 @@ export type Database = {
           date?: string
           id?: string
           invoice_number?: number | null
+          invoice_ref?: string | null
           labour_charge?: number
           markup_percentage?: number
           parts_cost?: number
@@ -155,6 +157,7 @@ export type Database = {
           date?: string
           id?: string
           invoice_number?: number | null
+          invoice_ref?: string | null
           labour_charge?: number
           markup_percentage?: number
           parts_cost?: number
