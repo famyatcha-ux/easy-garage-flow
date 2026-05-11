@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CalendarCheck, Wrench, CreditCard, Receipt, LayoutDashboard, Shield, User, Truck, Lock } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useRole } from "@/contexts/RoleContext";
+import fsLogo from "@/assets/fs-motors-logo.png";
 import {
   Sidebar,
   SidebarContent,
@@ -74,11 +75,16 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        <div className="p-4">
+        <div className="p-4 flex flex-col items-center gap-2">
+          <img
+            src={fsLogo}
+            alt="FS Motors Mechanical Services"
+            className={collapsed ? "h-8 w-8 object-contain" : "h-16 w-16 object-contain"}
+          />
           {!collapsed && (
-            <h1 className="text-lg font-bold text-sidebar-primary-foreground">
-              🔧 Workshop
-            </h1>
+            <p className="text-xs font-medium text-center text-sidebar-foreground">
+              FS Motors Mechanical Services
+            </p>
           )}
         </div>
         <SidebarGroup>
