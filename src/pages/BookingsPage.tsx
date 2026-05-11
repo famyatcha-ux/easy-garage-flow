@@ -76,7 +76,15 @@ export default function BookingsPage() {
         }).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("bookings").insert(payload);
+        const { data: counter, error: cErr } = await supabase
+          .from("ref_counters").select("value").eq("name", "booking").single();
+        if (cErr) throw cErr;
+        const next = (counter?.value ?? 0) + 1;
+        const { error: uErr } = await supabase
+          .from("ref_counters").update({ value: next }).eq("name", "booking");
+        if (uErr) throw uErr;
+        const booking_ref = `BK-${String(next).padStart(4, "0")}`;
+        const { error } = await supabase.from("bookings").insert({ ...payload, booking_ref });
         if (error) throw error;
       }
     },
@@ -185,6 +193,7 @@ export default function BookingsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Ref</TableHead>
                 <TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Contact</TableHead>
                 <TableHead>Vehicle</TableHead><TableHead>Reg</TableHead><TableHead>Problem</TableHead>
                 <TableHead>Status</TableHead><TableHead>Actions</TableHead>
@@ -193,6 +202,7 @@ export default function BookingsPage() {
             <TableBody>
               {filtered.map((b) => (
                 <TableRow key={b.id}>
+                  <TableCell className="font-mono whitespace-nowrap">{b.booking_ref ?? "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">{b.date}</TableCell>
                   <TableCell>{b.customer_name}</TableCell><TableCell>{b.contact_number}</TableCell>
                   <TableCell>{b.vehicle}</TableCell><TableCell>{b.registration}</TableCell>
@@ -213,7 +223,7 @@ export default function BookingsPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filtered.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No bookings in this period</TableCell></TableRow>}
+              {filtered.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No bookings in this period</TableCell></TableRow>}
             </TableBody>
           </Table>
         </div>
