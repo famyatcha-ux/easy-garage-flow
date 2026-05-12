@@ -463,6 +463,57 @@ Driving Dreams, Delivering Excellence.`;
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Record Payment dialog */}
+      <Dialog open={!!paymentJobId} onOpenChange={(v) => { if (!v) setPaymentJobId(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Record Payment</DialogTitle></DialogHeader>
+          {paymentJobId && (() => {
+            const job = jobs.find((j) => j.id === paymentJobId);
+            if (!job) return null;
+            const c = calc(job as any);
+            const paid = paidByJob[paymentJobId] || 0;
+            const balance = c.totalValue - paid;
+            const booking = (job as any).bookings as { customer_name: string; vehicle: string } | null;
+            return (
+              <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); recordPayment.mutate(); }}>
+                <div className="bg-muted p-3 rounded text-sm space-y-1">
+                  <p>{booking?.customer_name} — {booking?.vehicle}</p>
+                  <p>Job Total: <strong>{fmt(c.totalValue)}</strong></p>
+                  <p>Already Paid: <strong>{fmt(paid)}</strong></p>
+                  <p>Balance Due: <strong>{fmt(balance)}</strong></p>
+                </div>
+                <div><Label>Date</Label><Input type="date" value={paymentForm.date} onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })} /></div>
+                <div><Label>Amount</Label><Input type="number" min={0} step={0.01} value={paymentForm.amount_paid} onChange={(e) => setPaymentForm({ ...paymentForm, amount_paid: +e.target.value })} /></div>
+                <div><Label>Payment Method</Label>
+                  <Select value={paymentForm.payment_method} onValueChange={(v) => setPaymentForm({ ...paymentForm, payment_method: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="Card">Card</SelectItem>
+                      <SelectItem value="EFT">EFT</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Payment Type</Label>
+                  <Select value={paymentForm.payment_type} onValueChange={(v) => setPaymentForm({ ...paymentForm, payment_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Deposit">Deposit</SelectItem>
+                      <SelectItem value="Partial">Partial</SelectItem>
+                      <SelectItem value="Final">Final</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button type="submit" className="w-full" disabled={recordPayment.isPending || paymentForm.amount_paid <= 0}>
+                  {recordPayment.isPending ? "Recording..." : "Record Payment"}
+                </Button>
+              </form>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
