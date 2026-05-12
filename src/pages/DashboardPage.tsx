@@ -100,6 +100,34 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {expenseBreakdown.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold mb-3">Expense Breakdown</h3>
+          <div className="border rounded-lg overflow-auto max-w-md">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {expenseBreakdown.map(([category, amount]) => (
+                  <TableRow key={category}>
+                    <TableCell>{category}</TableCell>
+                    <TableCell className="text-right font-medium">{fmt(amount)}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="border-t-2 font-semibold">
+                  <TableCell>Grand Total</TableCell>
+                  <TableCell className="text-right">{fmt(totalExpenses)}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
