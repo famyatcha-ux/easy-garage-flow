@@ -129,7 +129,33 @@ export default function JobsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
   });
 
-  const calc = (j: { parts_cost: number; markup_percentage: number; id: string }) => {
+  const recordPayment = useMutation({
+    mutationFn: async () => {
+      if (!paymentJobId) return;
+      const { error } = await supabase.from("payments").insert({
+        job_id: paymentJobId,
+        amount_paid: paymentForm.amount_paid,
+        payment_method: paymentForm.payment_method,
+        payment_type: paymentForm.payment_type,
+        date: paymentForm.date,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      setPaymentJobId(null);
+      toast({ title: "Payment recorded" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const openPaymentDialog = (job: any) => {
+    const c = calc(job);
+    const balance = Math.max(0, c.totalValue - (paidByJob[job.id] || 0));
+    setPaymentForm({ amount_paid: balance, payment_method: "Cash", payment_type: "Final", date: new Date().toISOString().split("T")[0] });
+    setPaymentJobId(job.id);
+  };
+
     const labourCharge = labourFor(j.id);
     const partsSellingPrice = j.parts_cost * (1 + j.markup_percentage / 100);
     const totalValue = labourCharge + partsSellingPrice;
