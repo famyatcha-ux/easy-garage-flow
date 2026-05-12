@@ -385,6 +385,7 @@ Driving Dreams, Delivering Excellence.`;
                     {isAdmin && <TableCell className="text-right font-medium">{fmt(c.profit)}</TableCell>}
                     <TableCell className="flex gap-1">
                       <Button variant="ghost" size="sm" onClick={() => openEdit(j)} title="Edit"><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => openPaymentDialog(j)} title="Record Payment"><Plus className="h-4 w-4 text-green-600" /></Button>
                       <Button variant="ghost" size="sm" onClick={() => setPreviewJobId(j.id)} title="View Invoice"><Eye className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDownload(j)} title="Download Invoice"><Download className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="sm" onClick={() => handlePrint(j)} title="Print Invoice"><Printer className="h-4 w-4" /></Button>
