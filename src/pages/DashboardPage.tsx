@@ -66,9 +66,9 @@ export default function DashboardPage() {
 
   const cards = [
     { title: "Total Income", value: fmt(totalIncome), icon: DollarSign, color: "text-primary" },
+    { title: "Cash Received", value: fmt(cashReceived), icon: DollarSign, color: "text-muted-foreground" },
     { title: "Total Expenses", value: fmt(totalExpenses), icon: TrendingDown, color: "text-destructive" },
     { title: "Net Profit (Job Basis)", value: fmt(netProfit), icon: TrendingUp, color: netProfit >= 0 ? "text-primary" : "text-destructive" },
-    { title: "Cash Received", value: fmt(cashReceived), icon: DollarSign, color: "text-muted-foreground" },
     { title: "Outstanding", value: fmt(outstanding), icon: AlertCircle, color: "text-muted-foreground" },
     { title: "Jobs", value: String(jobCount), icon: Wrench, color: "text-primary" },
   ];
