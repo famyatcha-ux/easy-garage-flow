@@ -4,7 +4,7 @@ import { getMonthRange, getCurrentMonthIndex, getCurrentYear } from "@/lib/month
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, Wrench } from "lucide-react";
 
 function inRange(dateStr: string, start: string, end: string) {
