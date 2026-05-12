@@ -38,6 +38,8 @@ export default function JobsPage() {
   const [lineItems, setLineItems] = useState<LineItemDraft[]>([{ description: "", amount: 0 }]);
   const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
   const [previewJobId, setPreviewJobId] = useState<string | null>(null);
+  const [paymentJobId, setPaymentJobId] = useState<string | null>(null);
+  const [paymentForm, setPaymentForm] = useState({ amount_paid: 0, payment_method: "Cash", payment_type: "Final", date: new Date().toISOString().split("T")[0] });
 
   const { data: bookings = [] } = useQuery({
     queryKey: ["bookings"],
