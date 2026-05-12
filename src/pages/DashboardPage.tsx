@@ -64,6 +64,14 @@ export default function DashboardPage() {
   const netProfit = jobProfitTotal - totalExpenses;
   const jobCount = filteredJobs.length;
 
+  const expenseBreakdown = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of filteredExpenses) {
+      map.set(e.category, (map.get(e.category) || 0) + e.amount);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [filteredExpenses]);
+
   const cards = [
     { title: "Total Income", value: fmt(totalIncome), icon: DollarSign, color: "text-primary" },
     { title: "Cash Received", value: fmt(cashReceived), icon: DollarSign, color: "text-muted-foreground" },
