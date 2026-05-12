@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-const CATEGORIES = ["Parts Purchase", "Rent", "Salaries", "Fuel", "Other"] as const;
+const CATEGORIES = ["Parts Purchase", "Rent / Premises", "Salaries", "Fuel", "Tools & Equipment", "Utilities", "Vehicle Expenses", "Marketing", "Insurance", "Bank Charges", "Other"] as const;
 const CATEGORIES_END = "" as const;
 
 const emptyForm = { date: new Date().toISOString().split("T")[0], category: "Parts Purchase", amount: 0, notes: "" };
