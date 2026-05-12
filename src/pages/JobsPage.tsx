@@ -38,6 +38,8 @@ export default function JobsPage() {
   const [lineItems, setLineItems] = useState<LineItemDraft[]>([{ description: "", amount: 0 }]);
   const [monthIdx, setMonthIdx] = useState<number>(getCurrentMonthIndex());
   const [previewJobId, setPreviewJobId] = useState<string | null>(null);
+  const [paymentJobId, setPaymentJobId] = useState<string | null>(null);
+  const [paymentForm, setPaymentForm] = useState({ amount_paid: 0, payment_method: "Cash", payment_type: "Final", date: new Date().toISOString().split("T")[0] });
 
   const { data: bookings = [] } = useQuery({
     queryKey: ["bookings"],
@@ -127,6 +129,32 @@ export default function JobsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
   });
 
+  const recordPayment = useMutation({
+    mutationFn: async () => {
+      if (!paymentJobId) return;
+      const { error } = await supabase.from("payments").insert({
+        job_id: paymentJobId,
+        amount_paid: paymentForm.amount_paid,
+        payment_method: paymentForm.payment_method,
+        payment_type: paymentForm.payment_type,
+        date: paymentForm.date,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      setPaymentJobId(null);
+      toast({ title: "Payment recorded" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const openPaymentDialog = (job: any) => {
+    const c = calc(job);
+    const balance = Math.max(0, c.totalValue - (paidByJob[job.id] || 0));
+    setPaymentForm({ amount_paid: balance, payment_method: "Cash", payment_type: "Final", date: new Date().toISOString().split("T")[0] });
+    setPaymentJobId(job.id);
+  };
   const calc = (j: { parts_cost: number; markup_percentage: number; id: string }) => {
     const labourCharge = labourFor(j.id);
     const partsSellingPrice = j.parts_cost * (1 + j.markup_percentage / 100);
@@ -357,6 +385,7 @@ Driving Dreams, Delivering Excellence.`;
                     {isAdmin && <TableCell className="text-right font-medium">{fmt(c.profit)}</TableCell>}
                     <TableCell className="flex gap-1">
                       <Button variant="ghost" size="sm" onClick={() => openEdit(j)} title="Edit"><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => openPaymentDialog(j)} title="Record Payment"><Plus className="h-4 w-4 text-green-600" /></Button>
                       <Button variant="ghost" size="sm" onClick={() => setPreviewJobId(j.id)} title="View Invoice"><Eye className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDownload(j)} title="Download Invoice"><Download className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="sm" onClick={() => handlePrint(j)} title="Print Invoice"><Printer className="h-4 w-4" /></Button>
@@ -430,6 +459,57 @@ Driving Dreams, Delivering Excellence.`;
                   <Button onClick={() => handleDownload(previewJob)}><Download className="h-4 w-4 mr-2" />Download PDF</Button>
                 </div>
               </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Payment dialog */}
+      <Dialog open={!!paymentJobId} onOpenChange={(v) => { if (!v) setPaymentJobId(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Record Payment</DialogTitle></DialogHeader>
+          {paymentJobId && (() => {
+            const job = jobs.find((j) => j.id === paymentJobId);
+            if (!job) return null;
+            const c = calc(job as any);
+            const paid = paidByJob[paymentJobId] || 0;
+            const balance = c.totalValue - paid;
+            const booking = (job as any).bookings as { customer_name: string; vehicle: string } | null;
+            return (
+              <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); recordPayment.mutate(); }}>
+                <div className="bg-muted p-3 rounded text-sm space-y-1">
+                  <p>{booking?.customer_name} — {booking?.vehicle}</p>
+                  <p>Job Total: <strong>{fmt(c.totalValue)}</strong></p>
+                  <p>Already Paid: <strong>{fmt(paid)}</strong></p>
+                  <p>Balance Due: <strong>{fmt(balance)}</strong></p>
+                </div>
+                <div><Label>Date</Label><Input type="date" value={paymentForm.date} onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })} /></div>
+                <div><Label>Amount</Label><Input type="number" min={0} step={0.01} value={paymentForm.amount_paid} onChange={(e) => setPaymentForm({ ...paymentForm, amount_paid: +e.target.value })} /></div>
+                <div><Label>Payment Method</Label>
+                  <Select value={paymentForm.payment_method} onValueChange={(v) => setPaymentForm({ ...paymentForm, payment_method: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="Card">Card</SelectItem>
+                      <SelectItem value="EFT">EFT</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Payment Type</Label>
+                  <Select value={paymentForm.payment_type} onValueChange={(v) => setPaymentForm({ ...paymentForm, payment_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Deposit">Deposit</SelectItem>
+                      <SelectItem value="Partial">Partial</SelectItem>
+                      <SelectItem value="Final">Final</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button type="submit" className="w-full" disabled={recordPayment.isPending || paymentForm.amount_paid <= 0}>
+                  {recordPayment.isPending ? "Recording..." : "Record Payment"}
+                </Button>
+              </form>
             );
           })()}
         </DialogContent>
