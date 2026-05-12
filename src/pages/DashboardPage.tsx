@@ -4,7 +4,7 @@ import { getMonthRange, getCurrentMonthIndex, getCurrentYear } from "@/lib/month
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, Wrench } from "lucide-react";
 
 function inRange(dateStr: string, start: string, end: string) {
@@ -64,6 +64,14 @@ export default function DashboardPage() {
   const netProfit = jobProfitTotal - totalExpenses;
   const jobCount = filteredJobs.length;
 
+  const expenseBreakdown = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of filteredExpenses) {
+      map.set(e.category, (map.get(e.category) || 0) + e.amount);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [filteredExpenses]);
+
   const cards = [
     { title: "Total Income", value: fmt(totalIncome), icon: DollarSign, color: "text-primary" },
     { title: "Cash Received", value: fmt(cashReceived), icon: DollarSign, color: "text-muted-foreground" },
@@ -92,6 +100,34 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {expenseBreakdown.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold mb-3">Expense Breakdown</h3>
+          <div className="border rounded-lg overflow-auto max-w-md">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {expenseBreakdown.map(([category, amount]) => (
+                  <TableRow key={category}>
+                    <TableCell>{category}</TableCell>
+                    <TableCell className="text-right font-medium">{fmt(amount)}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="border-t-2 font-semibold">
+                  <TableCell>Grand Total</TableCell>
+                  <TableCell className="text-right">{fmt(totalExpenses)}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
