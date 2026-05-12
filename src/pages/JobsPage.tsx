@@ -155,7 +155,7 @@ export default function JobsPage() {
     setPaymentForm({ amount_paid: balance, payment_method: "Cash", payment_type: "Final", date: new Date().toISOString().split("T")[0] });
     setPaymentJobId(job.id);
   };
-
+  const calc = (j: { parts_cost: number; markup_percentage: number; id: string }) => {
     const labourCharge = labourFor(j.id);
     const partsSellingPrice = j.parts_cost * (1 + j.markup_percentage / 100);
     const totalValue = labourCharge + partsSellingPrice;
