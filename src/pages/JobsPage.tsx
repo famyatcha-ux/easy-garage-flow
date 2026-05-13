@@ -1,3 +1,4 @@
+import fsLogo from "@/assets/fs-motors-logo.png";
 import { useState, useMemo } from "react";
 import { MonthSelector } from "@/components/MonthSelector";
 import { getMonthRange, getCurrentMonthIndex, getCurrentYear } from "@/lib/monthRange";
@@ -420,7 +421,7 @@ Driving Dreams, Delivering Excellence.`;
               <div className="space-y-4 text-sm">
                 <div className="flex justify-between items-start border-b pb-3">
                   <div>
-                    <div className="text-xl font-bold">{inv.businessName}</div>
+                    <img src={fsLogo} alt="FS Motors" className="h-16 w-auto mb-1" />
                     {inv.businessAddress && <div className="text-xs text-muted-foreground">{inv.businessAddress}</div>}
                     {inv.businessPhone && <div className="text-xs text-muted-foreground">Tel: {inv.businessPhone}</div>}
                     {inv.businessTagline && <div className="text-xs italic text-muted-foreground mt-1">{inv.businessTagline}</div>}
