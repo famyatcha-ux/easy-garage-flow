@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import fsLogo from "@/assets/fs-motors-logo.png";
 
 export interface InvoiceLineItem {
   description: string;
