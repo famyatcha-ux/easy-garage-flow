@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import fsLogo from "@/assets/fs-motors-logo.png";
 
 export interface InvoiceLineItem {
   description: string;
@@ -31,43 +32,48 @@ export function generateInvoice(data: InvoiceData) {
   const totalValue = totalLabour + data.partsSellingPrice;
   const balanceDue = totalValue - data.amountPaid;
 
-  // Header
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.text(businessName, 20, 22);
+  // Header - Logo
+  try {
+    doc.addImage(fsLogo, "PNG", 14, 8, 44, 28);
+  } catch {
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text(businessName, 14, 22);
+  }
 
-  doc.setFontSize(9);
+  // Business details below logo
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(90);
-  let hy = 28;
-  if (data.businessAddress) { doc.text(data.businessAddress, 20, hy); hy += 5; }
-  if (data.businessPhone) { doc.text(`Tel: ${data.businessPhone}`, 20, hy); hy += 5; }
+  let hy = 38;
+  if (data.businessAddress) { doc.text(data.businessAddress, 14, hy); hy += 4; }
+  if (data.businessPhone) { doc.text(`Tel: ${data.businessPhone}`, 14, hy); hy += 4; }
   if (data.businessTagline) {
     doc.setFont("helvetica", "italic");
-    doc.text(data.businessTagline, 20, hy);
+    doc.text(data.businessTagline, 14, hy);
     doc.setFont("helvetica", "normal");
   }
   doc.setTextColor(0);
 
   doc.setFontSize(18);
   doc.setTextColor(100);
-  doc.text("INVOICE", 190, 22, { align: "right" });
+  doc.text("INVOICE", 190, 18, { align: "right" });
   doc.setTextColor(0);
 
   doc.setFontSize(10);
-  doc.text(`Invoice #: ${String(data.invoiceNumber)}`, 190, 30, { align: "right" });
-  doc.text(`Date: ${data.date}`, 190, 36, { align: "right" });
+  doc.text(`Invoice #: ${String(data.invoiceNumber)}`, 190, 26, { align: "right" });
+  doc.text(`Date: ${data.date}`, 190, 32, { align: "right" });
 
   doc.setDrawColor(200);
-  doc.line(20, 48, 190, 48);
+  doc.line(20, 54, 190, 54);
 
   // Customer details
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("Bill To", 20, 56);
+  doc.text("Bill To", 20, 62);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  let y = 62;
+  let y = 68;
   doc.text(data.customerName, 20, y);
   if (data.contactNumber) { y += 6; doc.text(`Contact: ${data.contactNumber}`, 20, y); }
   y += 6; doc.text(`Vehicle: ${data.vehicle}`, 20, y);
