@@ -237,7 +237,14 @@ Driving Dreams, Delivering Excellence.`;
       toast({ title: "No contact number", description: "Customer has no contact number on file.", variant: "destructive" });
       return;
     }
-    window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, "_blank");
+    const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const totalJobValue = filtered.reduce((s, j) => s + calc(j).totalValue, 0);
