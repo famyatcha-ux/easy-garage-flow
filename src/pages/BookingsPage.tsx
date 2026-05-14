@@ -275,7 +275,17 @@ export default function BookingsPage() {
                       <Button variant="outline" size="sm" onClick={() => { setDepositBooking({ id: b.id, customer_name: b.customer_name, vehicle: b.vehicle }); setDepositAmount(""); setDepositMethod("Cash"); }} title="Create Job + Take Deposit">
                         <Wrench className="h-4 w-4 mr-1" />Job + Deposit
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteBooking({ id: b.id, customer_name: b.customer_name })} title="Delete" className="text-destructive hover:text-destructive">
+                      <Button variant="ghost" size="sm" onClick={async () => {
+                        const { data: linked, error } = await supabase.from("jobs").select("id").eq("booking_id", b.id);
+                        if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                        if ((linked ?? []).length > 0) {
+                          setDeleteBooking({ id: b.id, customer_name: b.customer_name });
+                        } else {
+                          if (window.confirm(`Are you sure you want to delete the booking for ${b.customer_name}?`)) {
+                            deleteBookingMutation.mutate(b.id);
+                          }
+                        }
+                      }} title="Delete" className="text-destructive hover:text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
