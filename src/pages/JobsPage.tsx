@@ -413,7 +413,7 @@ Driving Dreams, Delivering Excellence.`;
                   </TableRow>
                 );
               })}
-              {filtered.length === 0 && <TableRow><TableCell colSpan={isAdmin ? 12 : 7} className="text-center text-muted-foreground py-8">No jobs in this period</TableCell></TableRow>}
+              {filtered.length === 0 && <TableRow><TableCell colSpan={isAdmin ? 14 : 9} className="text-center text-muted-foreground py-8">No jobs in this period</TableCell></TableRow>}
             </TableBody>
           </Table>
         </div>
