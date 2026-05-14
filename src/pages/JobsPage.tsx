@@ -399,6 +399,8 @@ Driving Dreams, Delivering Excellence.`;
                     {isAdmin && <TableCell className="text-right">{j.markup_percentage}%</TableCell>}
                     {isAdmin && <TableCell className="text-right">{fmt(c.partsSellingPrice)}</TableCell>}
                     <TableCell className="text-right font-medium">{fmt(c.totalValue)}</TableCell>
+                    <TableCell className="text-right">{fmt(paid)}</TableCell>
+                    <TableCell className={`text-right font-medium ${outstanding > 0.005 ? "text-destructive" : "text-green-600"}`}>{fmt(Math.max(0, outstanding))}</TableCell>
                     {isAdmin && <TableCell className="text-right font-medium">{fmt(c.profit)}</TableCell>}
                     <TableCell className="flex gap-1">
                       <Button variant="ghost" size="sm" onClick={() => openEdit(j)} title="Edit"><Pencil className="h-4 w-4" /></Button>
