@@ -171,7 +171,7 @@ export default function BookingsPage() {
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["payments"] });
       setDeleteBooking(null);
-      toast({ title: "Booking deleted" });
+      toast({ title: "Booking and all linked records deleted." });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
