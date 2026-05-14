@@ -380,6 +380,8 @@ Driving Dreams, Delivering Excellence.`;
             <TableBody>
               {filtered.map((j) => {
                 const c = calc(j as any);
+                const paid = paidByJob[j.id] || 0;
+                const outstanding = c.totalValue - paid;
                 const booking = (j as any).bookings as { customer_name: string; vehicle: string; registration: string | null } | null;
                 return (
                   <TableRow key={j.id}>
