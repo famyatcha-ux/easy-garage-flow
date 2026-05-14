@@ -126,8 +126,22 @@ export default function JobsPage() {
   });
 
   const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => { const { error } = await supabase.from("jobs").update({ status } as any).eq("id", id); if (error) throw error; },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
+    mutationFn: async ({ id, status, bookingId }: { id: string; status: string; bookingId?: string | null }) => {
+      const { error } = await supabase.from("jobs").update({ status } as any).eq("id", id);
+      if (error) throw error;
+      if (status === "Completed" && bookingId) {
+        const { error: bErr } = await supabase.from("bookings").update({ status: "Completed" }).eq("id", bookingId);
+        if (bErr) throw bErr;
+      }
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      if (vars.status === "Completed" && vars.bookingId) {
+        qc.invalidateQueries({ queryKey: ["bookings"] });
+        toast({ title: "Job and booking marked as completed." });
+      }
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const recordPayment = useMutation({
@@ -389,7 +403,7 @@ Driving Dreams, Delivering Excellence.`;
                     <TableCell className="whitespace-nowrap">{j.date}</TableCell>
                     <TableCell>{booking?.customer_name}</TableCell><TableCell>{booking?.vehicle}</TableCell>
                     <TableCell>
-                      <Select value={(j as any).status ?? "Pending"} onValueChange={(v) => updateStatus.mutate({ id: j.id, status: v })}>
+                      <Select value={(j as any).status ?? "Pending"} onValueChange={(v) => updateStatus.mutate({ id: j.id, status: v, bookingId: j.booking_id })}>
                         <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
                         <SelectContent>{JOB_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                       </Select>
