@@ -371,6 +371,8 @@ Driving Dreams, Delivering Excellence.`;
                 {isAdmin && <TableHead className="text-right">Markup %</TableHead>}
                 {isAdmin && <TableHead className="text-right">Parts Selling</TableHead>}
                 <TableHead className="text-right">Total Value</TableHead>
+                <TableHead className="text-right">Paid</TableHead>
+                <TableHead className="text-right">Outstanding</TableHead>
                 {isAdmin && <TableHead className="text-right">Profit</TableHead>}
                 <TableHead>Actions</TableHead>
               </TableRow>
