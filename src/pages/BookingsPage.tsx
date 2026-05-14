@@ -171,7 +171,7 @@ export default function BookingsPage() {
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["payments"] });
       setDeleteBooking(null);
-      toast({ title: "Booking deleted" });
+      toast({ title: "Booking and all linked records deleted." });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -275,7 +275,17 @@ export default function BookingsPage() {
                       <Button variant="outline" size="sm" onClick={() => { setDepositBooking({ id: b.id, customer_name: b.customer_name, vehicle: b.vehicle }); setDepositAmount(""); setDepositMethod("Cash"); }} title="Create Job + Take Deposit">
                         <Wrench className="h-4 w-4 mr-1" />Job + Deposit
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteBooking({ id: b.id, customer_name: b.customer_name })} title="Delete" className="text-destructive hover:text-destructive">
+                      <Button variant="ghost" size="sm" onClick={async () => {
+                        const { data: linked, error } = await supabase.from("jobs").select("id").eq("booking_id", b.id);
+                        if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                        if ((linked ?? []).length > 0) {
+                          setDeleteBooking({ id: b.id, customer_name: b.customer_name });
+                        } else {
+                          if (window.confirm(`Are you sure you want to delete the booking for ${b.customer_name}?`)) {
+                            deleteBookingMutation.mutate(b.id);
+                          }
+                        }
+                      }} title="Delete" className="text-destructive hover:text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -324,9 +334,9 @@ export default function BookingsPage() {
       <AlertDialog open={!!deleteBooking} onOpenChange={(v) => { if (!v) setDeleteBooking(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this booking?</AlertDialogTitle>
+            <AlertDialogTitle>Delete booking and all linked records?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the booking for <span className="font-medium">{deleteBooking?.customer_name}</span> along with any linked jobs and payments. This cannot be undone.
+              This booking has linked jobs and payments. Deleting it will permanently remove all associated jobs, line items, and payments. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -336,7 +346,7 @@ export default function BookingsPage() {
               onClick={(e) => { e.preventDefault(); if (deleteBooking) deleteBookingMutation.mutate(deleteBooking.id); }}
               disabled={deleteBookingMutation.isPending}
             >
-              {deleteBookingMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteBookingMutation.isPending ? "Deleting..." : "Delete Everything"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
