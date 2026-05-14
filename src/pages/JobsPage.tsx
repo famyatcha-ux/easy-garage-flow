@@ -250,6 +250,10 @@ Driving Dreams, Delivering Excellence.`;
 
   const totalJobValue = filtered.reduce((s, j) => s + calc(j).totalValue, 0);
   const totalProfit = filtered.reduce((s, j) => s + calc(j).profit, 0);
+  const totalReceived = useMemo(
+    () => payments.filter((p) => p.date >= start && p.date <= end).reduce((s, p) => s + Number(p.amount_paid || 0), 0),
+    [payments, start, end]
+  );
 
   const previewJob = previewJobId ? jobs.find((j) => j.id === previewJobId) : null;
 
@@ -348,9 +352,10 @@ Driving Dreams, Delivering Excellence.`;
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Jobs</CardTitle><Wrench className="h-4 w-4 text-primary" /></CardHeader><CardContent><div className="text-2xl font-bold">{filtered.length}</div></CardContent></Card>
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Job Value</CardTitle><DollarSign className="h-4 w-4 text-primary" /></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(totalJobValue)}</div></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Received</CardTitle><DollarSign className="h-4 w-4 text-green-600" /></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">{fmt(totalReceived)}</div></CardContent></Card>
         {isAdmin && <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Profit</CardTitle><TrendingUp className="h-4 w-4 text-primary" /></CardHeader><CardContent><div className={`text-2xl font-bold ${totalProfit >= 0 ? "text-primary" : "text-destructive"}`}>{fmt(totalProfit)}</div></CardContent></Card>}
       </div>
 
@@ -366,6 +371,8 @@ Driving Dreams, Delivering Excellence.`;
                 {isAdmin && <TableHead className="text-right">Markup %</TableHead>}
                 {isAdmin && <TableHead className="text-right">Parts Selling</TableHead>}
                 <TableHead className="text-right">Total Value</TableHead>
+                <TableHead className="text-right">Paid</TableHead>
+                <TableHead className="text-right">Outstanding</TableHead>
                 {isAdmin && <TableHead className="text-right">Profit</TableHead>}
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -373,6 +380,8 @@ Driving Dreams, Delivering Excellence.`;
             <TableBody>
               {filtered.map((j) => {
                 const c = calc(j as any);
+                const paid = paidByJob[j.id] || 0;
+                const outstanding = c.totalValue - paid;
                 const booking = (j as any).bookings as { customer_name: string; vehicle: string; registration: string | null } | null;
                 return (
                   <TableRow key={j.id}>
@@ -390,6 +399,8 @@ Driving Dreams, Delivering Excellence.`;
                     {isAdmin && <TableCell className="text-right">{j.markup_percentage}%</TableCell>}
                     {isAdmin && <TableCell className="text-right">{fmt(c.partsSellingPrice)}</TableCell>}
                     <TableCell className="text-right font-medium">{fmt(c.totalValue)}</TableCell>
+                    <TableCell className="text-right">{fmt(paid)}</TableCell>
+                    <TableCell className={`text-right font-medium ${outstanding > 0.005 ? "text-destructive" : "text-green-600"}`}>{fmt(Math.max(0, outstanding))}</TableCell>
                     {isAdmin && <TableCell className="text-right font-medium">{fmt(c.profit)}</TableCell>}
                     <TableCell className="flex gap-1">
                       <Button variant="ghost" size="sm" onClick={() => openEdit(j)} title="Edit"><Pencil className="h-4 w-4" /></Button>
@@ -402,7 +413,7 @@ Driving Dreams, Delivering Excellence.`;
                   </TableRow>
                 );
               })}
-              {filtered.length === 0 && <TableRow><TableCell colSpan={isAdmin ? 12 : 7} className="text-center text-muted-foreground py-8">No jobs in this period</TableCell></TableRow>}
+              {filtered.length === 0 && <TableRow><TableCell colSpan={isAdmin ? 14 : 9} className="text-center text-muted-foreground py-8">No jobs in this period</TableCell></TableRow>}
             </TableBody>
           </Table>
         </div>
