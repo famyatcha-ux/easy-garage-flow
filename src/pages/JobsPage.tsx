@@ -250,6 +250,10 @@ Driving Dreams, Delivering Excellence.`;
 
   const totalJobValue = filtered.reduce((s, j) => s + calc(j).totalValue, 0);
   const totalProfit = filtered.reduce((s, j) => s + calc(j).profit, 0);
+  const totalReceived = useMemo(
+    () => payments.filter((p) => p.date >= start && p.date <= end).reduce((s, p) => s + Number(p.amount_paid || 0), 0),
+    [payments, start, end]
+  );
 
   const previewJob = previewJobId ? jobs.find((j) => j.id === previewJobId) : null;
 
