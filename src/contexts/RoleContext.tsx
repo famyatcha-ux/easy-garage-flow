@@ -3,7 +3,7 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 export type Role = "assistant" | "admin";
 
 // Simple shared admin password. Change here to update.
-export const ADMIN_PASSWORD = "admin123";
+export const ADMIN_PASSWORD = "fsadmin2024";
 
 interface RoleContextType {
   role: Role;
