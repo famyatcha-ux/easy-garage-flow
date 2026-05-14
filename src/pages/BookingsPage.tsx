@@ -334,9 +334,9 @@ export default function BookingsPage() {
       <AlertDialog open={!!deleteBooking} onOpenChange={(v) => { if (!v) setDeleteBooking(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this booking?</AlertDialogTitle>
+            <AlertDialogTitle>Delete booking and all linked records?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the booking for <span className="font-medium">{deleteBooking?.customer_name}</span> along with any linked jobs and payments. This cannot be undone.
+              This booking has linked jobs and payments. Deleting it will permanently remove all associated jobs, line items, and payments. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -346,7 +346,7 @@ export default function BookingsPage() {
               onClick={(e) => { e.preventDefault(); if (deleteBooking) deleteBookingMutation.mutate(deleteBooking.id); }}
               disabled={deleteBookingMutation.isPending}
             >
-              {deleteBookingMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteBookingMutation.isPending ? "Deleting..." : "Delete Everything"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
