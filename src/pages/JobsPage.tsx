@@ -403,7 +403,7 @@ Driving Dreams, Delivering Excellence.`;
                     <TableCell className="whitespace-nowrap">{j.date}</TableCell>
                     <TableCell>{booking?.customer_name}</TableCell><TableCell>{booking?.vehicle}</TableCell>
                     <TableCell>
-                      <Select value={(j as any).status ?? "Pending"} onValueChange={(v) => updateStatus.mutate({ id: j.id, status: v })}>
+                      <Select value={(j as any).status ?? "Pending"} onValueChange={(v) => updateStatus.mutate({ id: j.id, status: v, bookingId: j.booking_id })}>
                         <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
                         <SelectContent>{JOB_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                       </Select>
